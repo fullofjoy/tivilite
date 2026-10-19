@@ -33,34 +33,42 @@ jobs:
     - name: Build Debug APK
       run: gradle assembleDebug --stacktrace
 
-    - name: Rename APK for Release
-      run: cp app/build/outputs/apk/debug/app-debug.apk TiviLite-v1.0.0.apk
+    - name: Prepare APK for Release
+      run: |
+        TAG_NAME="${{ github.ref_name }}"
+        if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "main" ]; then
+          TAG_NAME="latest"
+        fi
+        cp app/build/outputs/apk/debug/app-debug.apk "TiviLite-${TAG_NAME}.apk"
+        echo "APK_FILE=TiviLite-${TAG_NAME}.apk" >> $GITHUB_ENV
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: TiviLite-AndroidTV-APK
-        path: TiviLite-v1.0.0.apk
+        path: ${{ env.APK_FILE }}
         retention-days: 30
 
     - name: Create GitHub Release on Tag
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
-        files: TiviLite-v1.0.0.apk
+        files: ${{ env.APK_FILE }}
         name: TiviLite ${{ github.ref_name }} (Android TV 纯净播放器)
         body: |
-          ## 📺 TiviLite (灵动TV) 首发版本发布
+          ## 📺 TiviLite ${{ github.ref_name }} 优化版本发布
           
           专为大屏打造的 Android TV / 电视机顶盒专用 IPTV 播放器。
           
-          ### ✨ 本版核心亮点：
-          - ⚡ **Media3 ExoPlayer 秒开换台**：超低预加载缓冲，换台无感秒开。
-          - 🎮 **经典 TiviMate 遥控手感**：方向键物理拦截，左拉分类抽屉，右拉 7 天回看。
-          - 👑 **Open-Core 商业闭环**：内置离线设备码激活系统，保护 7 天时移回看与扫码配源特权。
+          ### ✨ 本版核心亮点与优化：
+          - ⚡ **开机直启 & 频道记忆**：电视开机自动启动，自动恢复上次观看频道，长辈小孩免操作。
+          - 📱 **手机扫码免遥控激活**：手机扫码不仅能一键推源，还能直接粘贴激活码，秒激活大屏 Pro。
+          - ⏪ **7天回看快进/快退进度条**：回看模式下 [左/右] 方向键 15 秒步进跳跃，实时 OSD 进度显示。
+          - 🔢 **遥控器 0-9 数字键选台**：大屏右上角数字浮层，输入数字 1.4 秒自动切台或按确定直达。
+          - 🎮 **经典 TiviMate 遥控交互**：方向键物理拦截，左拉分类抽屉，右拉 7 天回看。
           
           ### 📥 安装方式：
-          下载下方的 `TiviLite-v1.0.0.apk`，通过 U 盘或局域网助手直接安装到电视/机顶盒即可！
+          下载下方的 APK 安装包，通过 U 盘或局域网助手直接安装到电视/机顶盒即可！
         draft: false
         prerelease: false
       env:

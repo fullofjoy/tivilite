@@ -59,6 +59,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView webServerUrlText;
     private ImageView qrCodeImageView;
 
+    private LinearLayout catchupSeekBarContainer;
+    private ProgressBar catchupProgressBar;
+    private TextView seekTimeText;
+    private TextView channelNumberInputBadge;
+
     private PlayerManager playerManager;
     private WebPushServer webServer;
     private ChannelAdapter channelAdapter;
@@ -71,6 +76,11 @@ public class MainActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable hideOsdRunnable = () -> bottomOsd.setVisibility(View.GONE);
+    private final Runnable hideSeekBarRunnable = () -> {
+        if (catchupSeekBarContainer != null) catchupSeekBarContainer.setVisibility(View.GONE);
+    };
+    private final StringBuilder numberInputBuffer = new StringBuilder();
+    private final Runnable commitNumberInputRunnable = this::commitNumberInput;
     private long lastBackPressTime = 0;
 
     @Override
@@ -91,6 +101,10 @@ public class MainActivity extends AppCompatActivity {
         rightEpgPanel = findViewById(R.id.rightEpgPanel);
         bottomOsd = findViewById(R.id.bottomOsd);
         webConfigDialog = findViewById(R.id.webConfigDialog);
+        catchupSeekBarContainer = findViewById(R.id.catchupSeekBarContainer);
+        catchupProgressBar = findViewById(R.id.catchupProgressBar);
+        seekTimeText = findViewById(R.id.seekTimeText);
+        channelNumberInputBadge = findViewById(R.id.channelNumberInputBadge);
 
         groupRecyclerView = findViewById(R.id.groupRecyclerView);
         channelRecyclerView = findViewById(R.id.channelRecyclerView);
@@ -185,6 +199,17 @@ public class MainActivity extends AppCompatActivity {
             public void onM3UContentReceived(String content) {
                 saveAndApplyM3U(content);
             }
+
+            @Override
+            public void onLicenseCodeReceived(String code) {
+                handler.post(() -> {
+                    if (com.tivilite.tv.license.LicenseManager.activate(MainActivity.this, code)) {
+                        Toast.makeText(MainActivity.this, "🎉 手机端已成功激活 TiviLite Pro！", Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "❌ 激活失败：激活码与当前设备不匹配", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         });
         webServer.start();
         String localIp = WebPushServer.getLocalIpAddress();
@@ -221,7 +246,11 @@ public class MainActivity extends AppCompatActivity {
 
         if (!allChannels.isEmpty()) {
             channelAdapter.setChannels(allChannels);
-            playSelectedChannel(allChannels.get(0));
+            // Restore last played channel on boot / app launch
+            int savedIndex = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getInt("last_channel_index", 0);
+            if (savedIndex < 0 || savedIndex >= allChannels.size()) savedIndex = 0;
+            currentChannelIndex = savedIndex;
+            playSelectedChannel(allChannels.get(currentChannelIndex));
         }
     }
 
@@ -231,6 +260,16 @@ public class MainActivity extends AppCompatActivity {
         updateOsd(channel);
         showOsd();
         leftSidebar.setVisibility(View.GONE);
+
+        // Remember last played channel index
+        int idx = allChannels.indexOf(channel);
+        if (idx >= 0) {
+            currentChannelIndex = idx;
+            getSharedPreferences("tivilite_prefs", MODE_PRIVATE)
+                    .edit()
+                    .putInt("last_channel_index", currentChannelIndex)
+                    .apply();
+        }
     }
 
     private void updateOsd(Channel channel) {
@@ -273,6 +312,25 @@ public class MainActivity extends AppCompatActivity {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
 
+            // 1. Numeric Keypad Direct Zapping (0-9)
+            if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9) {
+                handleNumberInput(keyCode - KeyEvent.KEYCODE_0);
+                return true;
+            }
+
+            // 2. Catch-up Seek Bar (Left/Right fast rewind/forward by 15s)
+            if (playerManager != null && playerManager.isCatchupMode() 
+                    && leftSidebar.getVisibility() != View.VISIBLE 
+                    && rightEpgPanel.getVisibility() != View.VISIBLE) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    performCatchupSeek(-15000);
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    performCatchupSeek(15000);
+                    return true;
+                }
+            }
+
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (rightEpgPanel.getVisibility() == View.VISIBLE) {
                     rightEpgPanel.setVisibility(View.GONE);
@@ -296,6 +354,10 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (numberInputBuffer.length() > 0) {
+                    commitNumberInput();
+                    return true;
+                }
                 if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
                     showOsd();
                     return true;
@@ -314,6 +376,16 @@ public class MainActivity extends AppCompatActivity {
                 toggleWebConfigDialog();
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (catchupSeekBarContainer != null && catchupSeekBarContainer.getVisibility() == View.VISIBLE) {
+                    catchupSeekBarContainer.setVisibility(View.GONE);
+                    return true;
+                }
+                if (channelNumberInputBadge != null && channelNumberInputBadge.getVisibility() == View.VISIBLE) {
+                    numberInputBuffer.setLength(0);
+                    channelNumberInputBadge.setVisibility(View.GONE);
+                    handler.removeCallbacks(commitNumberInputRunnable);
+                    return true;
+                }
                 if (webConfigDialog.getVisibility() == View.VISIBLE) {
                     webConfigDialog.setVisibility(View.GONE);
                     return true;
@@ -341,6 +413,70 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    private void handleNumberInput(int digit) {
+        handler.removeCallbacks(commitNumberInputRunnable);
+        if (numberInputBuffer.length() >= 3) numberInputBuffer.setLength(0);
+        numberInputBuffer.append(digit);
+
+        if (channelNumberInputBadge != null) {
+            channelNumberInputBadge.setText(numberInputBuffer.toString());
+            channelNumberInputBadge.setVisibility(View.VISIBLE);
+        }
+        handler.postDelayed(commitNumberInputRunnable, 1400);
+    }
+
+    private void commitNumberInput() {
+        if (channelNumberInputBadge != null) {
+            channelNumberInputBadge.setVisibility(View.GONE);
+        }
+        if (numberInputBuffer.length() == 0 || allChannels.isEmpty()) return;
+        try {
+            int targetNum = Integer.parseInt(numberInputBuffer.toString());
+            numberInputBuffer.setLength(0);
+
+            for (int i = 0; i < allChannels.size(); i++) {
+                if (allChannels.get(i).getNumber() == targetNum) {
+                    playSelectedChannel(allChannels.get(i));
+                    return;
+                }
+            }
+            Toast.makeText(this, "未找到该频道号", Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) {
+            numberInputBuffer.setLength(0);
+        }
+    }
+
+    private void performCatchupSeek(long offsetMs) {
+        if (playerManager == null || catchupSeekBarContainer == null) return;
+        playerManager.seekBy(offsetMs);
+
+        long current = playerManager.getCurrentPosition();
+        long duration = playerManager.getDuration();
+        if (duration > 0) {
+            int percent = (int) ((current * 100) / duration);
+            catchupProgressBar.setProgress(percent);
+            seekTimeText.setText(formatDuration(current) + " / " + formatDuration(duration));
+        } else {
+            seekTimeText.setText(formatDuration(current));
+        }
+
+        catchupSeekBarContainer.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(hideSeekBarRunnable);
+        handler.postDelayed(hideSeekBarRunnable, 4000);
+    }
+
+    private String formatDuration(long ms) {
+        long totalSeconds = Math.max(0, ms / 1000);
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        if (hours > 0) {
+            return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
+        } else {
+            return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+        }
     }
 
     private void switchChannelRelative(int delta) {

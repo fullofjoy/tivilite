@@ -152,6 +152,27 @@ public class PlayerManager {
         return isCatchupMode;
     }
 
+    public void seekBy(long offsetMs) {
+        if (player == null) return;
+        long current = player.getCurrentPosition();
+        long target = Math.max(0, current + offsetMs);
+        long duration = player.getDuration();
+        if (duration > 0) target = Math.min(target, duration);
+        player.seekTo(target);
+    }
+
+    public void seekTo(long positionMs) {
+        if (player != null) player.seekTo(positionMs);
+    }
+
+    public long getCurrentPosition() {
+        return player != null ? player.getCurrentPosition() : 0;
+    }
+
+    public long getDuration() {
+        return player != null ? player.getDuration() : 0;
+    }
+
     public void release() {
         if (player != null) {
             player.release();

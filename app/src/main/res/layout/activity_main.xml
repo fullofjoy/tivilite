@@ -288,10 +288,89 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="在手机网页上粘贴 M3U 订阅或上传文件，点击推送即可！按 [返回键] 关闭本窗口。"
+                android:text="手机扫码直接粘贴 M3U 订阅或输入激活码！按 [返回键] 关闭本窗口。"
                 android:textColor="@color/tv_text_dim"
                 android:textSize="13sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- 7. Catch-up Seek Bar OSD -->
+    <LinearLayout
+        android:id="@+id/catchupSeekBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="60dp"
+        android:layout_marginBottom="90dp"
+        android:orientation="vertical"
+        android:background="@drawable/bg_osd_translucent"
+        android:padding="20dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⏪ 7天时移回看中"
+                android:textColor="@color/tv_badge_catchup"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/seekTimeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:text="00:15:30 / 00:45:00"
+                android:textColor="@color/tv_accent"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/catchupProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginTop="12dp"
+            android:progress="35"
+            android:progressTint="@color/tv_accent"
+            android:progressBackgroundTint="#33FFFFFF" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="按 [← / →] 方向键快进快退 15 秒，按 [返回键] 关闭进度条"
+            android:textColor="@color/tv_text_dim"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 8. Floating Channel Number Input Badge (0-9 Digits) -->
+    <TextView
+        android:id="@+id/channelNumberInputBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="36dp"
+        android:background="@drawable/bg_osd_translucent"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:text="01"
+        android:textColor="@color/tv_accent"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
