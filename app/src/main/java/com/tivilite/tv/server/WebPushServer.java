@@ -19,6 +19,7 @@ public class WebPushServer {
         void onM3UUrlReceived(String url);
         void onM3UContentReceived(String content);
         void onLicenseCodeReceived(String code);
+        void onCheckUpdateRequested();
     }
 
     private final int port;
@@ -130,6 +131,9 @@ public class WebPushServer {
                     String code = obj.getString("license_code").trim();
                     if (!code.isEmpty()) listener.onLicenseCodeReceived(code);
                 }
+                if (obj.has("check_update")) {
+                    listener.onCheckUpdateRequested();
+                }
                 return;
             }
 
@@ -146,6 +150,8 @@ public class WebPushServer {
                         listener.onM3UContentReceived(val);
                     } else if ("license_code".equals(key) && !val.isEmpty()) {
                         listener.onLicenseCodeReceived(val);
+                    } else if ("check_update".equals(key)) {
+                        listener.onCheckUpdateRequested();
                     }
                 }
             }
@@ -225,6 +231,13 @@ public class WebPushServer {
                 "<p style='color:var(--muted); font-size:12px; margin-bottom:10px;'>手机复制激活码，无需电视遥控器逐字输入：</p>" +
                 "<input type='text' id='licenseInput' placeholder='PRO-XXXX-XXXX-XXXX' style='text-transform:uppercase;' />" +
                 "<button class='btn-primary' style='background:#10B981;' onclick='submitLicense()'>✨ 立即激活电视端 Pro</button>" +
+                "</div>" +
+
+                "<!-- Card 4: 系统在线更新 (OTA) -->" +
+                "<div class='card' style='border-color:rgba(255,255,255,0.15);'>" +
+                "<div class='card-title'>🔄 系统在线升级 (OTA)</div>" +
+                "<p style='color:var(--muted); font-size:12px; margin-bottom:10px;'>免拔插 U 盘，手机点一下即可通知电视在线检查并自动下载升级：</p>" +
+                "<button class='btn-primary' style='background:#242938;' onclick='postData({check_update:true})'>🔍 电视端立即检查新版本</button>" +
                 "</div>" +
 
                 "</div>" +

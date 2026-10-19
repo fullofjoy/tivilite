@@ -74,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView settingProStatusText;
     private android.widget.Button btnViewProDetails;
     private android.widget.Button btnToggleDirection;
+    private android.widget.Button btnCheckUpdate;
     private boolean invertUpDown = false;
 
     private PlayerManager playerManager;
@@ -109,6 +110,9 @@ public class MainActivity extends AppCompatActivity {
         initPlayer();
         initWebServer();
         loadChannels();
+
+        // Silent background update check after app launch
+        handler.postDelayed(() -> com.tivilite.tv.update.UpdateManager.checkUpdate(this, false), 4000);
     }
 
     private void initViews() {
@@ -163,6 +167,14 @@ public class MainActivity extends AppCompatActivity {
 
         if (btnViewProDetails != null) {
             btnViewProDetails.setOnClickListener(v -> showProDialog());
+        }
+
+        btnCheckUpdate = findViewById(R.id.btnCheckUpdate);
+        if (btnCheckUpdate != null) {
+            btnCheckUpdate.setText("🔄 检查在线新版本更新 (当前: v" + BuildConfig.VERSION_NAME + ")");
+            btnCheckUpdate.setOnClickListener(v -> {
+                com.tivilite.tv.update.UpdateManager.checkUpdate(this, true);
+            });
         }
 
         groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -340,6 +352,11 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "❌ 激活失败：激活码与当前设备不匹配", Toast.LENGTH_SHORT).show();
                     }
                 });
+            }
+
+            @Override
+            public void onCheckUpdateRequested() {
+                handler.post(() -> com.tivilite.tv.update.UpdateManager.checkUpdate(MainActivity.this, true));
             }
         });
         webServer.start();

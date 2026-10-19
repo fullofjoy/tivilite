@@ -305,6 +305,18 @@
                 android:textColor="@color/tv_text_primary"
                 android:textSize="13sp" />
 
+            <!-- Online OTA Update Button -->
+            <Button
+                android:id="@+id/btnCheckUpdate"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="8dp"
+                android:focusable="true"
+                android:backgroundTint="#242938"
+                android:text="🔄 在线检查新版本更新"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp" />
+
             <!-- Divider -->
             <View
                 android:layout_width="match_parent"
