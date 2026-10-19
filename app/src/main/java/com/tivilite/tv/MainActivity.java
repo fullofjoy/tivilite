@@ -98,6 +98,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Keep screen on continuously to prevent TV system screensaver or sleep timeout
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
         invertUpDown = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("invert_up_down", false);
@@ -111,6 +113,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         playerView = findViewById(R.id.playerView);
+        if (playerView != null) {
+            playerView.setKeepScreenOn(true);
+        }
         loadingIndicator = findViewById(R.id.loadingIndicator);
         leftSidebar = findViewById(R.id.leftSidebar);
         rightEpgPanel = findViewById(R.id.rightEpgPanel);

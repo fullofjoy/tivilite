@@ -80,6 +80,7 @@ public class PlayerManager {
                 .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setLoadControl(loadControl)
+                .setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
                 .build();
 
         player.setPlayWhenReady(true);
