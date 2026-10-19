@@ -255,17 +255,34 @@
                 android:textColor="@color/tv_text_secondary"
                 android:textSize="14sp" />
 
+            <!-- QR Code Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:layout_marginVertical="10dp"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/qrCodeImageView"
+                    android:layout_width="180dp"
+                    android:layout_height="180dp"
+                    android:background="#FFFFFF"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/webServerUrlText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginVertical="16dp"
+                android:layout_marginBottom="12dp"
                 android:background="@drawable/selector_tv_item"
-                android:padding="12dp"
+                android:padding="10dp"
                 android:text="http://192.168.1.100:8888"
                 android:textAlignment="center"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="24sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView

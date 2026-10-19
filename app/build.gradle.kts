@@ -59,4 +59,7 @@ dependencies {
     // Glide for Channel Logos
     implementation("com.github.bumptech.glide:glide:4.16.0")
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
+    // ZXing for QR Code generation
+    implementation("com.google.zxing:core:3.5.3")
 }

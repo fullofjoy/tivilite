@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView osdBadge;
     private ImageView osdLogo;
     private TextView webServerUrlText;
+    private ImageView qrCodeImageView;
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -101,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         osdBadge = findViewById(R.id.osdBadge);
         osdLogo = findViewById(R.id.osdLogo);
         webServerUrlText = findViewById(R.id.webServerUrlText);
+        qrCodeImageView = findViewById(R.id.qrCodeImageView);
 
         groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         channelRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -186,7 +188,12 @@ public class MainActivity extends AppCompatActivity {
         });
         webServer.start();
         String localIp = WebPushServer.getLocalIpAddress();
-        webServerUrlText.setText("http://" + localIp + ":8888");
+        String url = "http://" + localIp + ":8888";
+        webServerUrlText.setText(url);
+        android.graphics.Bitmap qr = generateQrCode(url);
+        if (qr != null && qrCodeImageView != null) {
+            qrCodeImageView.setImageBitmap(qr);
+        }
     }
 
     private void loadChannels() {
@@ -347,8 +354,32 @@ public class MainActivity extends AppCompatActivity {
             webConfigDialog.setVisibility(View.GONE);
         } else {
             String ip = WebPushServer.getLocalIpAddress();
-            webServerUrlText.setText("http://" + ip + ":8888");
+            String url = "http://" + ip + ":8888";
+            webServerUrlText.setText(url);
+            android.graphics.Bitmap qrBmp = generateQrCode(url);
+            if (qrBmp != null && qrCodeImageView != null) {
+                qrCodeImageView.setImageBitmap(qrBmp);
+            }
             webConfigDialog.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private android.graphics.Bitmap generateQrCode(String content) {
+        try {
+            com.google.zxing.qrcode.QRCodeWriter writer = new com.google.zxing.qrcode.QRCodeWriter();
+            com.google.zxing.common.BitMatrix bitMatrix = writer.encode(content, com.google.zxing.BarcodeFormat.QR_CODE, 512, 512);
+            int width = bitMatrix.getWidth();
+            int height = bitMatrix.getHeight();
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.RGB_565);
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    bmp.setPixel(x, y, bitMatrix.get(x, y) ? android.graphics.Color.BLACK : android.graphics.Color.WHITE);
+                }
+            }
+            return bmp;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
