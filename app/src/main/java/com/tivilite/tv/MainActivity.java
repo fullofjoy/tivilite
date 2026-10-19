@@ -504,6 +504,236 @@ public class MainActivity extends AppCompatActivity {
             public void onCheckUpdateRequested() {
                 handler.post(() -> com.tivilite.tv.update.UpdateManager.checkUpdate(MainActivity.this, true));
             }
+
+            @Override
+            public void onRemoteKeyReceived(String key, String value) {
+                handler.post(() -> {
+                    if ("up".equals(key)) {
+                        if (leftSidebar.getVisibility() == View.VISIBLE || rightEpgPanel.getVisibility() == View.VISIBLE) {
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP));
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_UP));
+                        } else {
+                            switchChannelRelative(invertUpDown ? 1 : -1);
+                        }
+                    } else if ("down".equals(key)) {
+                        if (leftSidebar.getVisibility() == View.VISIBLE || rightEpgPanel.getVisibility() == View.VISIBLE) {
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN));
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN));
+                        } else {
+                            switchChannelRelative(invertUpDown ? -1 : 1);
+                        }
+                    } else if ("left".equals(key)) {
+                        if (rightEpgPanel.getVisibility() == View.VISIBLE) {
+                            rightEpgPanel.setVisibility(View.GONE);
+                        } else if (leftSidebar.getVisibility() != View.VISIBLE) {
+                            leftSidebar.setVisibility(View.VISIBLE);
+                            channelRecyclerView.requestFocus();
+                        } else {
+                            groupRecyclerView.requestFocus();
+                        }
+                    } else if ("right".equals(key)) {
+                        if (leftSidebar.getVisibility() == View.VISIBLE) {
+                            leftSidebar.setVisibility(View.GONE);
+                        } else if (rightEpgPanel.getVisibility() != View.VISIBLE) {
+                            Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+                            if (ch != null) populateEpgTimeline(ch);
+                            rightEpgPanel.setVisibility(View.VISIBLE);
+                            epgRecyclerView.requestFocus();
+                        }
+                    } else if ("ok".equals(key)) {
+                        if (leftSidebar.getVisibility() == View.VISIBLE || rightEpgPanel.getVisibility() == View.VISIBLE || webConfigDialog.getVisibility() == View.VISIBLE) {
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER));
+                            dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER));
+                        } else {
+                            showOsd();
+                        }
+                    } else if ("back".equals(key)) {
+                        if (catchupSeekBarContainer != null && catchupSeekBarContainer.getVisibility() == View.VISIBLE) {
+                            catchupSeekBarContainer.setVisibility(View.GONE);
+                            if (playerManager != null && playerManager.isCatchupMode()) {
+                                Channel ch = playerManager.getCurrentChannel();
+                                if (ch != null) playerManager.playChannel(ch);
+                                showOsd();
+                            }
+                        } else if (channelNumberInputBadge != null && channelNumberInputBadge.getVisibility() == View.VISIBLE) {
+                            numberInputBuffer.setLength(0);
+                            channelNumberInputBadge.setVisibility(View.GONE);
+                        } else if (webConfigDialog.getVisibility() == View.VISIBLE) {
+                            webConfigDialog.setVisibility(View.GONE);
+                        } else if (leftSidebar.getVisibility() == View.VISIBLE) {
+                            leftSidebar.setVisibility(View.GONE);
+                        } else if (rightEpgPanel.getVisibility() == View.VISIBLE) {
+                            rightEpgPanel.setVisibility(View.GONE);
+                        } else if (bottomOsd.getVisibility() == View.VISIBLE) {
+                            bottomOsd.setVisibility(View.GONE);
+                        }
+                    } else if ("menu".equals(key)) {
+                        toggleWebConfigDialog();
+                    } else if ("favorite".equals(key)) {
+                        Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+                        if (ch != null) toggleChannelFavorite(ch);
+                    } else if ("switch_source".equals(key)) {
+                        if (playerManager != null) {
+                            playerManager.switchToNextSource();
+                            if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                        }
+                    } else if ("exit_catchup".equals(key)) {
+                        if (playerManager != null && playerManager.isCatchupMode()) {
+                            Channel ch = playerManager.getCurrentChannel();
+                            if (ch != null) {
+                                playerManager.playChannel(ch);
+                                showOsd();
+                                Toast.makeText(MainActivity.this, "📺 已退出回看，恢复实时直播", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            showOsd();
+                        }
+                    } else if ("volume_up".equals(key)) {
+                        android.media.AudioManager am = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+                        if (am != null) am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_RAISE, android.media.AudioManager.FLAG_SHOW_UI);
+                    } else if ("volume_down".equals(key)) {
+                        android.media.AudioManager am = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+                        if (am != null) am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI);
+                    } else if ("volume_mute".equals(key)) {
+                        android.media.AudioManager am = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+                        if (am != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_TOGGLE_MUTE, android.media.AudioManager.FLAG_SHOW_UI);
+                            } else {
+                                boolean isMute = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) == 0;
+                                am.setStreamMute(android.media.AudioManager.STREAM_MUSIC, !isMute);
+                            }
+                        }
+                    } else if ("number".equals(key)) {
+                        try {
+                            int n = Integer.parseInt(value);
+                            handleNumberInput(n);
+                        } catch (Exception ignored) {}
+                    }
+                });
+            }
+
+            @Override
+            public void onRemoteZapReceived(int index, String name, int number) {
+                handler.post(() -> {
+                    if (allChannels == null || allChannels.isEmpty()) return;
+                    if (index >= 0 && index < allChannels.size()) {
+                        playChannelAt(index);
+                        return;
+                    }
+                    if (number > 0) {
+                        for (int i = 0; i < allChannels.size(); i++) {
+                            if (allChannels.get(i).getNumber() == number) {
+                                playChannelAt(i);
+                                return;
+                            }
+                        }
+                    }
+                    if (name != null && !name.trim().isEmpty()) {
+                        String q = name.trim().toLowerCase();
+                        for (int i = 0; i < allChannels.size(); i++) {
+                            Channel c = allChannels.get(i);
+                            if (c.getName().toLowerCase().contains(q) || (c.getNumber() + "").equals(q)) {
+                                playChannelAt(i);
+                                return;
+                            }
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onChannelFavoriteToggled(String channelName) {
+                handler.post(() -> {
+                    if (channelName == null || allChannels == null) return;
+                    for (Channel c : allChannels) {
+                        if (c.getName().equalsIgnoreCase(channelName)) {
+                            toggleChannelFavorite(c);
+                            return;
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onAutoBootToggled() {
+                handler.post(() -> {
+                    boolean cur = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("auto_boot_start", true);
+                    getSharedPreferences("tivilite_prefs", MODE_PRIVATE).edit().putBoolean("auto_boot_start", !cur).apply();
+                    updateAutoBootButtonText();
+                    Toast.makeText(MainActivity.this, !cur ? "🚀 已开启开机自动进入直播" : "已关闭开机自启", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onDecoderToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    int cur = playerManager.getDecoderMode();
+                    int next = (cur == PlayerManager.DECODER_MODE_HARDWARE) ? PlayerManager.DECODER_MODE_SOFTWARE : PlayerManager.DECODER_MODE_HARDWARE;
+                    playerManager.setDecoderMode(next);
+                    updateDecoderButtonText();
+                    Toast.makeText(MainActivity.this, next == PlayerManager.DECODER_MODE_SOFTWARE
+                            ? "🎬 已切换为软件兼容解码模式"
+                            : "🎬 已切换为硬件加速解码模式", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+
+        webServer.setStatusProvider(new WebPushServer.StatusProvider() {
+            @Override
+            public org.json.JSONObject getStatusJson() {
+                org.json.JSONObject json = new org.json.JSONObject();
+                try {
+                    Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+                    if (ch != null) {
+                        json.put("name", ch.getName());
+                        json.put("number", ch.getNumber());
+                        json.put("group", ch.getGroup());
+                        json.put("logo", ch.getLogoUrl() != null ? ch.getLogoUrl() : "");
+                        json.put("source_info", ch.getSourceInfo());
+                        json.put("has_catchup", ch.hasCatchup());
+                        json.put("is_fav", com.tivilite.tv.favorite.FavoriteManager.isFavorite(MainActivity.this, ch.getName()));
+                        
+                        com.tivilite.tv.model.Program p = EpgManager.getInstance().getCachedCurrentProgram(ch.getName());
+                        if (p != null) {
+                            json.put("current_program", p.getTitle());
+                        } else {
+                            json.put("current_program", ch.hasCatchup() ? "高清直播 (支持7天时移回看)" : "高清直播");
+                        }
+                    }
+                    json.put("is_catchup_mode", playerManager != null && playerManager.isCatchupMode());
+                    json.put("decoder_mode", (playerManager != null && playerManager.getDecoderMode() == PlayerManager.DECODER_MODE_SOFTWARE)
+                            ? "软件兼容解码" : "硬件加速 (MediaCodec)");
+                    json.put("total_channels", allChannels != null ? allChannels.size() : 0);
+                    json.put("device_id", com.tivilite.tv.license.LicenseManager.getDeviceId(MainActivity.this));
+                    json.put("pro_status_text", com.tivilite.tv.license.LicenseManager.getProStatusText(MainActivity.this));
+                    json.put("version", BuildConfig.VERSION_NAME);
+                } catch (Exception ignored) {}
+                return json;
+            }
+
+            @Override
+            public org.json.JSONArray getChannelsJson() {
+                org.json.JSONArray arr = new org.json.JSONArray();
+                if (allChannels != null) {
+                    for (int i = 0; i < allChannels.size(); i++) {
+                        Channel ch = allChannels.get(i);
+                        org.json.JSONObject obj = new org.json.JSONObject();
+                        try {
+                            obj.put("index", i);
+                            obj.put("number", ch.getNumber());
+                            obj.put("name", ch.getName());
+                            obj.put("group", ch.getGroup());
+                            obj.put("has_catchup", ch.hasCatchup());
+                            obj.put("is_fav", com.tivilite.tv.favorite.FavoriteManager.isFavorite(MainActivity.this, ch.getName()));
+                            obj.put("sources", ch.getBackupUrls() != null ? ch.getBackupUrls().size() + 1 : 1);
+                            arr.put(obj);
+                        } catch (Exception ignored) {}
+                    }
+                }
+                return arr;
+            }
         });
         webServer.start();
         String localIp = WebPushServer.getLocalIpAddress();

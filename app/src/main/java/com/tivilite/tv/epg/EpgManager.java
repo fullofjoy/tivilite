@@ -44,6 +44,19 @@ public class EpgManager {
         return instance;
     }
 
+    public Program getCachedCurrentProgram(String rawName) {
+        if (rawName == null) return null;
+        String standardName = standardizeName(rawName);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String cacheKey = standardName + "_" + today;
+        synchronized (memoryCache) {
+            if (memoryCache.containsKey(cacheKey)) {
+                return findCurrentProgram(memoryCache.get(cacheKey));
+            }
+        }
+        return null;
+    }
+
     public void loadEpgForChannel(Context context, Channel channel, EpgCallback callback) {
         if (channel == null || callback == null) return;
         String rawName = channel.getName();

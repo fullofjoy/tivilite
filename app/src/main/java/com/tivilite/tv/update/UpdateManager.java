@@ -26,6 +26,8 @@ public class UpdateManager {
 
     private static final String API_URL = "https://api.github.com/repos/fullofjoy/tivilite/releases/latest";
     private static final String MIRROR_API_URL = "https://ghfast.top/https://api.github.com/repos/fullofjoy/tivilite/releases/latest";
+    private static final String RAW_VERSION_URL = "https://raw.githubusercontent.com/fullofjoy/tivilite/main/version.json";
+    private static final String MIRROR_RAW_VERSION_URL = "https://ghfast.top/https://raw.githubusercontent.com/fullofjoy/tivilite/main/version.json";
     private static final Handler handler = new Handler(Looper.getMainLooper());
 
     public static void checkUpdate(Context context, boolean isManual) {
@@ -38,6 +40,12 @@ public class UpdateManager {
             if (releaseObj == null) {
                 releaseObj = fetchReleaseJson(MIRROR_API_URL);
             }
+            if (releaseObj == null) {
+                releaseObj = fetchReleaseJson(RAW_VERSION_URL);
+            }
+            if (releaseObj == null) {
+                releaseObj = fetchReleaseJson(MIRROR_RAW_VERSION_URL);
+            }
 
             if (releaseObj == null) {
                 if (isManual) {
@@ -47,21 +55,23 @@ public class UpdateManager {
             }
 
             try {
-                String tagName = releaseObj.optString("tag_name", "");
+                String tagName = releaseObj.optString("tag_name", releaseObj.optString("version", ""));
                 String releaseName = releaseObj.optString("name", tagName);
-                String releaseNotes = releaseObj.optString("body", "常规性能优化与体验改进");
+                String releaseNotes = releaseObj.optString("body", releaseObj.optString("release_notes", "常规性能优化与体验改进"));
                 String cleanRemoteVer = tagName.replace("v", "").replace("V", "").trim();
                 String cleanLocalVer = BuildConfig.VERSION_NAME.replace("v", "").replace("V", "").trim();
 
-                String apkUrl = "";
-                JSONArray assets = releaseObj.optJSONArray("assets");
-                if (assets != null) {
-                    for (int i = 0; i < assets.length(); i++) {
-                        JSONObject asset = assets.getJSONObject(i);
-                        String name = asset.optString("name", "");
-                        if (name.endsWith(".apk")) {
-                            apkUrl = asset.optString("browser_download_url", "");
-                            break;
+                String apkUrl = releaseObj.optString("download_url", "");
+                if (apkUrl.isEmpty()) {
+                    JSONArray assets = releaseObj.optJSONArray("assets");
+                    if (assets != null) {
+                        for (int i = 0; i < assets.length(); i++) {
+                            JSONObject asset = assets.getJSONObject(i);
+                            String name = asset.optString("name", "");
+                            if (name.endsWith(".apk")) {
+                                apkUrl = asset.optString("browser_download_url", "");
+                                break;
+                            }
                         }
                     }
                 }

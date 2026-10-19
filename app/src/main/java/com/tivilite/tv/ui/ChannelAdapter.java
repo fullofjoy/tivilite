@@ -60,7 +60,18 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
         
         boolean isFav = com.tivilite.tv.favorite.FavoriteManager.isFavorite(holder.itemView.getContext(), channel.getName());
         holder.channelName.setText(isFav ? "⭐ " + channel.getName() : channel.getName());
-        holder.channelCurrentProgram.setText(channel.hasCatchup() ? "支持 7 天时移回看" : "高清实时直播");
+        
+        com.tivilite.tv.model.Program currentProg = com.tivilite.tv.epg.EpgManager.getInstance().getCachedCurrentProgram(channel.getName());
+        if (currentProg != null) {
+            holder.channelCurrentProgram.setText(currentProg.getTitle());
+        } else {
+            holder.channelCurrentProgram.setText(channel.hasCatchup() ? "支持 7 天时移回看" : "高清实时直播");
+            com.tivilite.tv.epg.EpgManager.getInstance().loadEpgForChannel(holder.itemView.getContext(), channel, (name, cur, sched) -> {
+                if (cur != null && holder.channelCurrentProgram != null) {
+                    holder.channelCurrentProgram.setText(cur.getTitle());
+                }
+            });
+        }
 
         if (channel.hasCatchup()) {
             holder.channelCatchupBadge.setVisibility(View.VISIBLE);

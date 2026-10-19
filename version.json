@@ -1,0 +1,6 @@
+{
+  "version": "1.1.0",
+  "version_code": 10,
+  "release_notes": "1. 📱 手机 Web 虚拟触控遥控器 (手机扫码一键遥控大屏换台、调音量、搜索)\n2. 📺 手机端大屏播放状态实时双向互联\n3. 📑 手机端所有聚合频道浏览与即搜即点大屏点播\n4. 🎬 边看边选实时节目单 (频道抽屉内实时显示各频道当前播出节目)\n5. 🚀 华为智慧屏与低功耗 TV 体验优化\n6. 🛡️ 官方统一签名，支持免卸载无缝覆盖更新",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.1.0/TiviLite-v1.1.0.apk"
+}

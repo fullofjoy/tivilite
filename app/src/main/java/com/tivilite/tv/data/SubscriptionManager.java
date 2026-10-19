@@ -251,6 +251,9 @@ public class SubscriptionManager {
                 .replace("1080p", "")
                 .replace("4k", "")
                 .replace("8k", "")
+                .replace("综合", "")
+                .replace("新闻", "")
+                .replace("中文国际", "")
                 .replace("cctv-", "cctv")
                 .trim();
     }
