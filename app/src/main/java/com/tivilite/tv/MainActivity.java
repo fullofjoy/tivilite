@@ -319,12 +319,13 @@ public class MainActivity extends AppCompatActivity {
         webServer = new WebPushServer(8888, new WebPushServer.OnM3UReceivedListener() {
             @Override
             public void onM3UUrlReceived(String url) {
+                handler.post(() -> Toast.makeText(MainActivity.this, "📡 收到新订阅源，正在连接拉取...", Toast.LENGTH_SHORT).show());
                 fetchM3UFromUrl(url);
             }
 
             @Override
             public void onM3UContentReceived(String content) {
-                saveAndApplyM3U(content);
+                handler.post(() -> saveAndApplyM3U(content));
             }
 
             @Override
@@ -332,6 +333,9 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(() -> {
                     if (com.tivilite.tv.license.LicenseManager.activate(MainActivity.this, code)) {
                         Toast.makeText(MainActivity.this, "🎉 手机端已成功激活 TiviLite Pro！", Toast.LENGTH_LONG).show();
+                        if (settingProStatusText != null) {
+                            settingProStatusText.setText(com.tivilite.tv.license.LicenseManager.getProStatusText(MainActivity.this));
+                        }
                     } else {
                         Toast.makeText(MainActivity.this, "❌ 激活失败：激活码与当前设备不匹配", Toast.LENGTH_SHORT).show();
                     }
@@ -715,34 +719,70 @@ public class MainActivity extends AppCompatActivity {
 
     private void fetchM3UFromUrl(String urlStr) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                URL url = new URL(urlStr);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-                try (InputStream in = conn.getInputStream();
-                     BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line).append("\n");
-                    handler.post(() -> saveAndApplyM3U(sb.toString()));
+                String curUrl = urlStr.trim();
+                for (int redirect = 0; redirect < 5; redirect++) {
+                    URL u = new URL(curUrl);
+                    conn = (HttpURLConnection) u.openConnection();
+                    conn.setInstanceFollowRedirects(true);
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(12000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; TV Box Build/QP1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0 Safari/537.36");
+                    conn.setRequestProperty("Accept", "*/*");
+                    int code = conn.getResponseCode();
+                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == 307 || code == 308) {
+                        String loc = conn.getHeaderField("Location");
+                        if (loc != null && !loc.isEmpty()) {
+                            curUrl = loc;
+                            conn.disconnect();
+                            continue;
+                        }
+                    }
+                    if (code == 200) {
+                        try (InputStream in = conn.getInputStream();
+                             BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+                            String content = sb.toString();
+                            handler.post(() -> saveAndApplyM3U(content));
+                            return;
+                        }
+                    } else {
+                        throw new Exception("HTTP 状态码: " + code);
+                    }
                 }
+                throw new Exception("重定向跳转次数过多");
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(this, "拉取 M3U 订阅失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(this, "拉取 M3U 订阅失败: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
 
     private void saveAndApplyM3U(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            Toast.makeText(this, "⚠️ 推送的内容为空，未更新频道", Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             File cacheFile = new File(getFilesDir(), "playlist.m3u");
             try (FileOutputStream fos = new FileOutputStream(cacheFile)) {
                 fos.write(content.getBytes(StandardCharsets.UTF_8));
             }
             loadChannels();
-            Toast.makeText(this, "🎉 订阅源更新成功！共加载 " + allChannels.size() + " 个频道", Toast.LENGTH_LONG).show();
+            if (!allChannels.isEmpty()) {
+                currentChannelIndex = 0;
+                playSelectedChannel(allChannels.get(0));
+                Toast.makeText(this, "🎉 订阅源更新成功！共加载 " + allChannels.size() + " 个频道", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "⚠️ 未在订阅中解析出有效频道，请检查源格式 (支持 M3U / TXT)", Toast.LENGTH_LONG).show();
+            }
         } catch (Exception e) {
             e.printStackTrace();
+            Toast.makeText(this, "保存订阅源异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -29,6 +29,7 @@ public class M3UParser {
             String line;
             Channel currentChannel = null;
             int channelNumber = 1;
+            String currentTxtGroup = "默认频道";
 
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
@@ -50,6 +51,35 @@ public class M3UParser {
                     currentChannel.setLogoUrl(extractTag(TVG_LOGO_PATTERN, line, ""));
                     currentChannel.setCatchupType(extractTag(CATCHUP_PATTERN, line, ""));
                     currentChannel.setCatchupSource(extractTag(CATCHUP_SOURCE_PATTERN, line, ""));
+                } else if (line.contains(",#genre#")) {
+                    // TVBox TXT format group header (e.g. "央视频道,#genre#")
+                    currentTxtGroup = line.substring(0, line.indexOf(",#genre#")).trim();
+                    currentChannel = null;
+                } else if (!line.startsWith("#") && line.contains(",")) {
+                    // TVBox TXT format channel (e.g. "CCTV-1,http://...#http://...")
+                    int comma = line.indexOf(',');
+                    String name = line.substring(0, comma).trim();
+                    String urlsPart = line.substring(comma + 1).trim();
+                    if (!name.isEmpty() && (urlsPart.startsWith("http://") || urlsPart.startsWith("https://") || urlsPart.startsWith("rtmp://") || urlsPart.startsWith("rtsp://") || urlsPart.startsWith("["))) {
+                        String[] splitUrls = urlsPart.split("#");
+                        Channel ch = new Channel(channelNumber++, name, currentTxtGroup, splitUrls[0].trim());
+                        for (int i = 1; i < splitUrls.length; i++) {
+                            if (!splitUrls[i].trim().isEmpty()) {
+                                ch.addUrl(splitUrls[i].trim());
+                            }
+                        }
+                        ch.setLogoUrl("https://live.fanmingming.cn/tv/" + name.replace("高清", "").replace("超清", "").trim() + ".png");
+                        Channel existing = findExistingChannel(channels, name, currentTxtGroup);
+                        if (existing != null) {
+                            for (String u : splitUrls) {
+                                if (!u.trim().isEmpty()) existing.addUrl(u.trim());
+                            }
+                        } else {
+                            channels.add(ch);
+                        }
+                        currentChannel = null;
+                        continue;
+                    }
                 } else if (!line.startsWith("#") && currentChannel != null) {
                     currentChannel.setUrl(line);
 
