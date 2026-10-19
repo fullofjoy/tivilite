@@ -101,7 +101,7 @@ public class M3UParser {
             e.printStackTrace();
         }
 
-        return channels.isEmpty() ? getDefaultChannels() : channels;
+        return channels;
     }
 
     private static Channel findExistingChannel(List<Channel> list, String name, String group) {
@@ -163,5 +163,9 @@ public class M3UParser {
         c1.setLogoUrl("https://live.fanmingming.com/tv/CGTN.png");
         list.add(c1);
         return list;
+    }
+
+    public static List<Channel> getDefaultChannels() {
+        return getDemoChannels();
     }
 }
