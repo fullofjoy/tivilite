@@ -19,12 +19,21 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
         void onChannelClick(Channel channel);
     }
 
+    public interface OnChannelLongClickListener {
+        void onChannelLongClick(Channel channel);
+    }
+
     private List<Channel> channels = new ArrayList<>();
     private final OnChannelClickListener listener;
+    private OnChannelLongClickListener longClickListener;
     private Channel currentPlayingChannel;
 
     public ChannelAdapter(OnChannelClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setOnChannelLongClickListener(OnChannelLongClickListener longClickListener) {
+        this.longClickListener = longClickListener;
     }
 
     public void setChannels(List<Channel> channels) {
@@ -48,7 +57,9 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Channel channel = channels.get(position);
         holder.channelNumber.setText(String.format("%02d", channel.getNumber()));
-        holder.channelName.setText(channel.getName());
+        
+        boolean isFav = com.tivilite.tv.favorite.FavoriteManager.isFavorite(holder.itemView.getContext(), channel.getName());
+        holder.channelName.setText(isFav ? "⭐ " + channel.getName() : channel.getName());
         holder.channelCurrentProgram.setText(channel.hasCatchup() ? "支持 7 天时移回看" : "高清实时直播");
 
         if (channel.hasCatchup()) {
@@ -72,6 +83,14 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onChannelClick(channel);
+        });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onChannelLongClick(channel);
+                return true;
+            }
+            return false;
         });
     }
 

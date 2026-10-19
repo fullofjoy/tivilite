@@ -75,6 +75,12 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnViewProDetails;
     private android.widget.Button btnToggleDirection;
     private android.widget.Button btnCheckUpdate;
+    private android.widget.Button btnToggleAutoBoot;
+    private CardView onboardingOverlay;
+    private ImageView onboardingQrCode;
+    private TextView onboardingServerUrl;
+    private android.widget.Button btnOnboardingDemo;
+    private LinearLayout remoteHintToast;
     private boolean invertUpDown = false;
 
     private PlayerManager playerManager;
@@ -92,9 +98,23 @@ public class MainActivity extends AppCompatActivity {
     private final Runnable hideSeekBarRunnable = () -> {
         if (catchupSeekBarContainer != null) catchupSeekBarContainer.setVisibility(View.GONE);
     };
+    private final Runnable hideRemoteHintRunnable = () -> {
+        if (remoteHintToast != null) remoteHintToast.setVisibility(View.GONE);
+    };
     private final StringBuilder numberInputBuffer = new StringBuilder();
     private final Runnable commitNumberInputRunnable = this::commitNumberInput;
     private long lastBackPressTime = 0;
+
+    private boolean okKeyLongPressed = false;
+    private final Runnable okLongPressRunnable = () -> {
+        okKeyLongPressed = true;
+        if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
+            Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+            if (ch != null) {
+                toggleChannelFavorite(ch);
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -177,11 +197,30 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        btnToggleAutoBoot = findViewById(R.id.btnToggleAutoBoot);
+        if (btnToggleAutoBoot != null) {
+            updateAutoBootButtonText();
+            btnToggleAutoBoot.setOnClickListener(v -> {
+                boolean cur = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("auto_boot_start", true);
+                boolean next = !cur;
+                getSharedPreferences("tivilite_prefs", MODE_PRIVATE).edit().putBoolean("auto_boot_start", next).apply();
+                updateAutoBootButtonText();
+                Toast.makeText(this, next ? "🚀 已开启开机自动进入直播" : "已关闭开机自启", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        onboardingOverlay = findViewById(R.id.onboardingOverlay);
+        onboardingQrCode = findViewById(R.id.onboardingQrCode);
+        onboardingServerUrl = findViewById(R.id.onboardingServerUrl);
+        btnOnboardingDemo = findViewById(R.id.btnOnboardingDemo);
+        remoteHintToast = findViewById(R.id.remoteHintToast);
+
         groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         channelRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         epgRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         channelAdapter = new ChannelAdapter(this::playSelectedChannel);
+        channelAdapter.setOnChannelLongClickListener(this::toggleChannelFavorite);
         channelRecyclerView.setAdapter(channelAdapter);
 
         epgAdapter = new EpgAdapter(program -> {
@@ -213,6 +252,35 @@ public class MainActivity extends AppCompatActivity {
                     ? "🎮 遥控切台方向: 反转模式 (▲下一台 / ▼上一台) - 点击切换"
                     : "🎮 遥控切台方向: 正常模式 (▲上一台 / ▼下一台) - 点击切换");
         }
+    }
+
+    private void updateAutoBootButtonText() {
+        if (btnToggleAutoBoot != null) {
+            boolean autoBoot = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("auto_boot_start", true);
+            btnToggleAutoBoot.setText(autoBoot
+                    ? "🚀 开机自动直达直播: 已开启 - 点击切换"
+                    : "🚀 开机自动直达直播: 已关闭 - 点击切换");
+        }
+    }
+
+    private void toggleChannelFavorite(Channel ch) {
+        if (ch == null) return;
+        boolean isFav = com.tivilite.tv.favorite.FavoriteManager.toggleFavorite(this, ch.getName());
+        Toast.makeText(this, isFav ? "⭐ 已将 [" + ch.getName() + "] 加入「我的收藏」" : "已将 [" + ch.getName() + "] 从收藏移除", Toast.LENGTH_SHORT).show();
+        updateOsd(ch);
+        refreshCategoriesAndChannels();
+    }
+
+    private void refreshCategoriesAndChannels() {
+        if (allChannels == null || allChannels.isEmpty()) return;
+        groupedChannels = M3UParser.groupByCategories(this, allChannels);
+        List<String> groups = new ArrayList<>(groupedChannels.keySet());
+        groupAdapter = new GroupAdapter(groups, groupName -> {
+            List<Channel> channels = groupedChannels.get(groupName);
+            channelAdapter.setChannels(channels);
+        });
+        groupRecyclerView.setAdapter(groupAdapter);
+        channelAdapter.notifyDataSetChanged();
     }
 
     private void showProDialog() {
@@ -383,7 +451,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         allChannels = M3UParser.parse(content);
-        groupedChannels = M3UParser.groupByCategories(allChannels);
+        groupedChannels = M3UParser.groupByCategories(this, allChannels);
 
         List<String> groups = new ArrayList<>(groupedChannels.keySet());
         groupAdapter = new GroupAdapter(groups, groupName -> {
@@ -393,12 +461,52 @@ public class MainActivity extends AppCompatActivity {
         groupRecyclerView.setAdapter(groupAdapter);
 
         if (!allChannels.isEmpty()) {
+            if (onboardingOverlay != null) onboardingOverlay.setVisibility(View.GONE);
             channelAdapter.setChannels(allChannels);
             // Restore last played channel on boot / app launch
             int savedIndex = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getInt("last_channel_index", 0);
             if (savedIndex < 0 || savedIndex >= allChannels.size()) savedIndex = 0;
             currentChannelIndex = savedIndex;
             playSelectedChannel(allChannels.get(currentChannelIndex));
+
+            showRemoteHintToast();
+        } else {
+            // 纯净播放器定位：本地未配源时，弹出高颜值首次使用扫码导流屏
+            showOnboardingWizard();
+        }
+    }
+
+    private void showOnboardingWizard() {
+        if (onboardingOverlay != null) {
+            String ip = WebPushServer.getLocalIpAddress();
+            String url = "http://" + ip + ":8888";
+            if (onboardingServerUrl != null) onboardingServerUrl.setText(url);
+            android.graphics.Bitmap qr = generateQrCode(url);
+            if (qr != null && onboardingQrCode != null) {
+                onboardingQrCode.setImageBitmap(qr);
+            }
+            onboardingOverlay.setVisibility(View.VISIBLE);
+            if (btnOnboardingDemo != null) {
+                btnOnboardingDemo.requestFocus();
+                btnOnboardingDemo.setOnClickListener(v -> {
+                    allChannels = M3UParser.getDemoChannels();
+                    groupedChannels = M3UParser.groupByCategories(this, allChannels);
+                    channelAdapter.setChannels(allChannels);
+                    if (onboardingOverlay != null) onboardingOverlay.setVisibility(View.GONE);
+                    currentChannelIndex = 0;
+                    playSelectedChannel(allChannels.get(0));
+                    Toast.makeText(this, "📺 已载入开源合规演示流 (仅供解码测试)", Toast.LENGTH_SHORT).show();
+                    showRemoteHintToast();
+                });
+            }
+        }
+    }
+
+    private void showRemoteHintToast() {
+        if (remoteHintToast != null) {
+            remoteHintToast.setVisibility(View.VISIBLE);
+            handler.removeCallbacks(hideRemoteHintRunnable);
+            handler.postDelayed(hideRemoteHintRunnable, 4500);
         }
     }
 
@@ -424,8 +532,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateOsd(Channel channel) {
+        boolean isFav = com.tivilite.tv.favorite.FavoriteManager.isFavorite(this, channel.getName());
         osdChannelNum.setText(String.format("%02d", channel.getNumber()));
-        osdChannelName.setText(channel.getName());
+        osdChannelName.setText(isFav ? "⭐ " + channel.getName() : channel.getName());
         osdProgram.setText(channel.hasCatchup() ? "正在播出：高清直播 (支持7天时移回看)" : "正在播出：高清直播");
         osdBadge.setText(channel.hasCatchup() ? "时移回看" : "高清实时");
         if (osdSource != null) {
@@ -550,7 +659,11 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
                 if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
-                    showOsd();
+                    if (event.getRepeatCount() == 0) {
+                        okKeyLongPressed = false;
+                        handler.removeCallbacks(okLongPressRunnable);
+                        handler.postDelayed(okLongPressRunnable, 700);
+                    }
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
@@ -616,6 +729,18 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     lastBackPressTime = now;
                     Toast.makeText(this, "再按一次退出 TiviLite", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+            }
+        } else if (event.getAction() == KeyEvent.ACTION_UP) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
+                    handler.removeCallbacks(okLongPressRunnable);
+                    if (!okKeyLongPressed) {
+                        showOsd();
+                    }
+                    okKeyLongPressed = false;
                     return true;
                 }
             }

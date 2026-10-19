@@ -317,6 +317,18 @@
                 android:textColor="@color/tv_text_primary"
                 android:textSize="13sp" />
 
+            <!-- Auto Boot Start Button -->
+            <Button
+                android:id="@+id/btnToggleAutoBoot"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="8dp"
+                android:focusable="true"
+                android:backgroundTint="#242938"
+                android:text="🚀 开机自动直达直播: 已开启 - 点击切换"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp" />
+
             <!-- Divider -->
             <View
                 android:layout_width="match_parent"
@@ -523,5 +535,175 @@
                 android:textSize="13sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- 8. First Launch Onboarding Wizard (纯净播放器无源引导向导) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/onboardingOverlay"
+        android:layout_width="680dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#F011141E"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="28dp">
+
+            <!-- Title & Pure Player Badge -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📺 欢迎使用 TiviLite 纯净播放器"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#2010B981"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="🛡️ 零捆绑 · 纯净播放"
+                    android:textColor="#10B981"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="本机当前暂无电视频道订阅。请使用手机或电脑将您的 M3U / TXT 源推送到大屏："
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="13sp" />
+
+            <!-- QR Code & Setup Steps Split -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Left: Big QR Code -->
+                <LinearLayout
+                    android:layout_width="180dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/onboardingQrCode"
+                        android:layout_width="160dp"
+                        android:layout_height="160dp"
+                        android:background="#FFFFFF"
+                        android:padding="6dp"
+                        android:scaleType="fitCenter" />
+
+                    <TextView
+                        android:id="@+id/onboardingServerUrl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:text="http://192.168.1.116:8888"
+                        android:textColor="@color/tv_accent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Right: Step-by-step Guide -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="20dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1️⃣ 手机连接相同家庭 Wi-Fi，扫描左侧二维码"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="2️⃣ 在网页中粘贴您的 M3U 订阅或 TXT 频道列表"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="3️⃣ 点击「立即推送」，电视大屏将自动切入播放"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="14dp"
+                        android:background="#22FFFFFF" />
+
+                    <!-- Quick Demo Stream Button for decoder testing -->
+                    <Button
+                        android:id="@+id/btnOnboardingDemo"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:focusable="true"
+                        android:backgroundTint="#242938"
+                        android:text="✨ 载入合规演示流 (仅供解码与网络测试)"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 9. Remote Key Hint Floating Toast (新手遥控快捷键指引) -->
+    <LinearLayout
+        android:id="@+id/remoteHintToast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_osd_translucent"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💡 遥控操作: [◄ 左键] 频道列表  |  [► 右键] 7天回看  |  [长按OK] 收藏频道  |  [菜单键] 偏好设置"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
