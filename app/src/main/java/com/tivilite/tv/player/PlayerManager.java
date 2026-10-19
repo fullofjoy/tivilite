@@ -162,7 +162,7 @@ public class PlayerManager {
             return "播放异常：连接源服务器超时 (网络抖动或源下线)";
         } else if (code == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
             return "播放异常：源返回 HTTP 403/404 (防盗链拦截或资源失效)";
-        } else if (code == PlaybackException.ERROR_CODE_PARSER_CONTAINER_UNSUPPORTED) {
+        } else if (code == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
             return "播放异常：无法解析该视频流封装格式";
         } else if (code == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) {
             return "播放异常：硬件解码器初始化超限，已尝试降级";
