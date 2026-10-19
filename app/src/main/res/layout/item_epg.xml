@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="3dp"
+    android:background="@drawable/selector_tv_item"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/epgTime"
+        android:layout_width="54dp"
+        android:layout_height="wrap_content"
+        android:text="19:00"
+        android:textColor="@color/tv_accent"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/epgProgramTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginHorizontal="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="新闻联播 (重播)"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/epgBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#2210B981"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="2dp"
+        android:text="回看"
+        android:textColor="@color/tv_badge_catchup"
+        android:textSize="11sp" />
+</LinearLayout>

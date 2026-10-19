@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TiviLite</string>
+    <string name="channel_list">频道列表</string>
+    <string name="epg_schedule">节目单 / 7天回看</string>
+    <string name="settings">设置 / 扫码配源</string>
+    <string name="loading">正在加载...</string>
+    <string name="no_channels">暂无频道，请按 [菜单键] 或扫码配置 M3U 源</string>
+    <string name="web_server_title">局域网 / 手机扫码一键配源</string>
+    <string name="web_server_tip">手机或电脑连接同一 Wi-Fi，在浏览器中打开：</string>
+    <string name="live_badge">直播</string>
+    <string name="catchup_badge">可回看</string>
+</resources>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/proDialogCard"
+    android:layout_width="540dp"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/tv_bg_translucent"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="28dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="👑 TiviLite Pro 尊享特权"
+            android:textColor="@color/tv_accent"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="7天时移回看、多源聚合测速、局域网一键配源属于 Pro 尊享特权。"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="14sp" />
+
+        <!-- Device Info Box -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="14dp"
+            android:background="@drawable/selector_tv_item"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前设备码："
+                android:textColor="@color/tv_text_dim"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/dialogDeviceId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TV-8B4F92AC"
+                android:textColor="@color/tv_accent"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Activation Code Input -->
+        <EditText
+            android:id="@+id/dialogInputCode"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/selector_tv_item"
+            android:hint="输入激活码 (例如: PRO-XXXX-XXXX-XXXX)"
+            android:paddingHorizontal="14dp"
+            android:textColor="@color/tv_text_primary"
+            android:textColorHint="@color/tv_text_dim"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCancelPro"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="#242938"
+                android:text="暂不解锁"
+                android:textColor="@color/tv_text_secondary" />
+
+            <Button
+                android:id="@+id/btnActivatePro"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/tv_accent_blue"
+                android:text="立即激活"
+                android:textColor="@color/white"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

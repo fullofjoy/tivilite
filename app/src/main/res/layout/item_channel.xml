@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="3dp"
+    android:background="@drawable/selector_tv_item"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/channelNumber"
+        android:layout_width="32dp"
+        android:layout_height="wrap_content"
+        android:text="01"
+        android:textColor="@color/tv_accent"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/channelLogo"
+        android:layout_width="36dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="10dp"
+        android:scaleType="fitCenter" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/channelName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="CCTV-1 综合"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/channelCurrentProgram"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="正在播出：新闻联播"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/channelCatchupBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#2200E5FF"
+        android:paddingHorizontal="5dp"
+        android:paddingVertical="1dp"
+        android:text="回看"
+        android:textColor="@color/tv_accent"
+        android:textSize="10sp"
+        android:visibility="gone" />
+</LinearLayout>
