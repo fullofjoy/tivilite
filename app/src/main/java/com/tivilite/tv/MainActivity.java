@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView osdChannelName;
     private TextView osdProgram;
     private TextView osdBadge;
+    private TextView osdSource;
     private ImageView osdLogo;
     private TextView webServerUrlText;
     private ImageView qrCodeImageView;
@@ -64,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar catchupProgressBar;
     private TextView seekTimeText;
     private TextView channelNumberInputBadge;
+
+    private CardView playbackErrorOverlay;
+    private TextView errorTitle;
+    private TextView errorDiagnostic;
+    private TextView errorRetryStatus;
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -115,9 +121,15 @@ public class MainActivity extends AppCompatActivity {
         osdChannelName = findViewById(R.id.osdChannelName);
         osdProgram = findViewById(R.id.osdProgram);
         osdBadge = findViewById(R.id.osdBadge);
+        osdSource = findViewById(R.id.osdSource);
         osdLogo = findViewById(R.id.osdLogo);
         webServerUrlText = findViewById(R.id.webServerUrlText);
         qrCodeImageView = findViewById(R.id.qrCodeImageView);
+
+        playbackErrorOverlay = findViewById(R.id.playbackErrorOverlay);
+        errorTitle = findViewById(R.id.errorTitle);
+        errorDiagnostic = findViewById(R.id.errorDiagnostic);
+        errorRetryStatus = findViewById(R.id.errorRetryStatus);
 
         groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         channelRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -180,11 +192,41 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPlaybackReady() {
                 loadingIndicator.setVisibility(View.GONE);
+                if (playbackErrorOverlay != null) {
+                    playbackErrorOverlay.setVisibility(View.GONE);
+                }
             }
 
             @Override
-            public void onError(String message) {
-                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+            public void onErrorRetrying(String message, int currentAttempt, int maxAttempts) {
+                loadingIndicator.setVisibility(View.VISIBLE);
+                if (playbackErrorOverlay != null) {
+                    errorTitle.setText("信号波动重试中 (" + currentAttempt + "/" + maxAttempts + ")");
+                    errorDiagnostic.setText(message);
+                    errorRetryStatus.setText("正在尝试自动重连，请稍候...");
+                    playbackErrorOverlay.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onAlternativeSourceSwitched(String sourceInfo) {
+                Toast.makeText(MainActivity.this, "🔄 " + sourceInfo, Toast.LENGTH_SHORT).show();
+                if (osdSource != null) {
+                    osdSource.setText(sourceInfo);
+                }
+            }
+
+            @Override
+            public void onErrorFatal(String diagnosticMessage, boolean hasAlternatives) {
+                loadingIndicator.setVisibility(View.GONE);
+                if (playbackErrorOverlay != null) {
+                    errorTitle.setText("播放异常");
+                    errorDiagnostic.setText(diagnosticMessage);
+                    errorRetryStatus.setText(hasAlternatives ? "💡 可按遥控器 [◄ / ► 左右键] 切换备用线路" : "💡 建议检查网络或按 [▲ / ▼] 快速换台");
+                    playbackErrorOverlay.setVisibility(View.VISIBLE);
+                } else {
+                    Toast.makeText(MainActivity.this, diagnosticMessage, Toast.LENGTH_LONG).show();
+                }
             }
         });
     }
@@ -256,6 +298,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void playSelectedChannel(Channel channel) {
+        if (playbackErrorOverlay != null) {
+            playbackErrorOverlay.setVisibility(View.GONE);
+        }
         playerManager.playChannel(channel);
         channelAdapter.setCurrentPlayingChannel(channel);
         updateOsd(channel);
@@ -278,6 +323,9 @@ public class MainActivity extends AppCompatActivity {
         osdChannelName.setText(channel.getName());
         osdProgram.setText(channel.hasCatchup() ? "正在播出：高清直播 (支持7天时移回看)" : "正在播出：高清直播");
         osdBadge.setText(channel.hasCatchup() ? "时移回看" : "高清实时");
+        if (osdSource != null) {
+            osdSource.setText(channel.getSourceInfo());
+        }
 
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
             Glide.with(this).load(channel.getLogoUrl()).placeholder(R.drawable.app_banner).into(osdLogo);
@@ -312,6 +360,33 @@ public class MainActivity extends AppCompatActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+
+            // 0. Interactive Failover & Error Overlay Navigation
+            if (playbackErrorOverlay != null && playbackErrorOverlay.getVisibility() == View.VISIBLE) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    playerManager.retryCurrent();
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    playerManager.switchToPreviousSource();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    playerManager.switchToNextSource();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_BACK) {
+                    playbackErrorOverlay.setVisibility(View.GONE);
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    playbackErrorOverlay.setVisibility(View.GONE);
+                    switchChannelRelative(-1);
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    playbackErrorOverlay.setVisibility(View.GONE);
+                    switchChannelRelative(1);
+                    return true;
+                }
+            }
 
             // 1. Numeric Keypad Direct Zapping (0-9)
             if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9) {
