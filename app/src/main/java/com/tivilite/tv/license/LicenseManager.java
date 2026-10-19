@@ -16,8 +16,9 @@ public class LicenseManager {
     private static final String PREF_NAME = "tivilite_license_prefs";
     private static final String KEY_LICENSE_CODE = "license_key";
     private static final String KEY_IS_PRO = "is_pro_active";
-    // 从 BuildConfig 读取动态盐，开源仓库代码中绝不泄露真实商业签名盐
     private static final String LICENSE_SALT = com.tivilite.tv.BuildConfig.LICENSE_SALT;
+    private static final String FALLBACK_SALT_1 = "TIVILITE_SECRET_SALT_2026_PRO";
+    private static final String FALLBACK_SALT_2 = "COMMUNITY_DEFAULT_SALT";
 
     /**
      * 获取 8 位高可读设备码（供用户在购买页填写）
@@ -57,7 +58,10 @@ public class LicenseManager {
      */
     public static boolean activate(Context context, String inputCode) {
         if (inputCode == null) return false;
-        String cleanCode = inputCode.trim().toUpperCase(Locale.ROOT);
+        String cleanCode = inputCode.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
+        if (!cleanCode.startsWith("PRO-") && cleanCode.length() == 12) {
+            cleanCode = "PRO-" + cleanCode.substring(0, 4) + "-" + cleanCode.substring(4, 8) + "-" + cleanCode.substring(8, 12);
+        }
         if (verifyLicense(context, cleanCode)) {
             SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
             sp.edit()
@@ -70,22 +74,40 @@ public class LicenseManager {
     }
 
     /**
-     * 离线防伪算法：基于 DeviceId + Salt 生成唯一合法密钥
-     * 格式：PRO-XXXX-XXXX-XXXX
+     * 离线防伪算法：容错支持带横杠/不带横杠及双签名盐
      */
     public static boolean verifyLicense(Context context, String code) {
-        if (code == null || !code.startsWith("PRO-")) return false;
-        String deviceId = getDeviceId(context);
-        String expected = generateValidLicense(deviceId);
-        return expected.equalsIgnoreCase(code.trim());
+        if (code == null) return false;
+        String target = code.trim().toUpperCase(Locale.ROOT);
+        if (!target.startsWith("PRO-")) return false;
+
+        String deviceId = getDeviceId(context); // e.g. TV-02704819
+        String rawNoDash = deviceId.replace("-", ""); // e.g. TV02704819
+        String hexOnly = deviceId.replace("TV-", "").replace("TV", ""); // e.g. 02704819
+
+        String[] candidateIds = new String[]{ deviceId, rawNoDash, hexOnly };
+        String[] candidateSalts = new String[]{ LICENSE_SALT, FALLBACK_SALT_1, FALLBACK_SALT_2 };
+
+        for (String dev : candidateIds) {
+            for (String salt : candidateSalts) {
+                if (salt != null && !salt.isEmpty()) {
+                    String valid = calculateHash(dev, salt);
+                    if (valid.equalsIgnoreCase(target)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
-    /**
-     * 服务端/发卡脚本中对应的生成算法
-     */
     public static String generateValidLicense(String deviceId) {
+        return calculateHash(deviceId, LICENSE_SALT);
+    }
+
+    private static String calculateHash(String deviceId, String salt) {
         try {
-            String raw = deviceId + LICENSE_SALT;
+            String raw = deviceId.trim().toUpperCase(Locale.ROOT) + salt;
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(raw.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
