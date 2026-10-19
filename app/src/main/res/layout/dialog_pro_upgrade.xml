@@ -23,12 +23,24 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/dialogProDesc"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="7天时移回看、多源聚合测速、局域网一键配源属于 Pro 尊享特权。"
             android:textColor="@color/tv_text_secondary"
             android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btnStartTrialPro"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#10B981"
+            android:text="🎁 立即开启 3 天 Pro 全功能免费体验"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <!-- Device Info Box -->
         <LinearLayout

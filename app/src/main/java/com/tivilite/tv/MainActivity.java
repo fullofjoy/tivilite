@@ -71,6 +71,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView errorDiagnostic;
     private TextView errorRetryStatus;
 
+    private TextView settingProStatusText;
+    private android.widget.Button btnViewProDetails;
+    private android.widget.Button btnToggleDirection;
+    private boolean invertUpDown = false;
+
     private PlayerManager playerManager;
     private WebPushServer webServer;
     private ChannelAdapter channelAdapter;
@@ -94,6 +99,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        invertUpDown = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("invert_up_down", false);
+        com.tivilite.tv.license.LicenseManager.startTrial(this);
 
         initViews();
         initPlayer();
@@ -131,6 +139,27 @@ public class MainActivity extends AppCompatActivity {
         errorDiagnostic = findViewById(R.id.errorDiagnostic);
         errorRetryStatus = findViewById(R.id.errorRetryStatus);
 
+        settingProStatusText = findViewById(R.id.settingProStatusText);
+        btnViewProDetails = findViewById(R.id.btnViewProDetails);
+        btnToggleDirection = findViewById(R.id.btnToggleDirection);
+
+        if (btnToggleDirection != null) {
+            updateDirectionButtonText();
+            btnToggleDirection.setOnClickListener(v -> {
+                invertUpDown = !invertUpDown;
+                getSharedPreferences("tivilite_prefs", MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("invert_up_down", invertUpDown)
+                        .apply();
+                updateDirectionButtonText();
+                Toast.makeText(this, invertUpDown ? "已开启切台反转模式 (▲下一台 / ▼上一台)" : "已恢复正常切台模式 (▲上一台 / ▼下一台)", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        if (btnViewProDetails != null) {
+            btnViewProDetails.setOnClickListener(v -> showProDialog());
+        }
+
         groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         channelRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         epgRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -145,6 +174,13 @@ public class MainActivity extends AppCompatActivity {
                     showProDialog();
                     return;
                 }
+                if (!program.isCatchup()) {
+                    playerManager.playChannel(ch);
+                    showOsd();
+                    rightEpgPanel.setVisibility(View.GONE);
+                    Toast.makeText(this, "📺 已退出回看，恢复实时直播", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 playerManager.playCatchup(ch, program.getStartTime(), program.getEndTime());
                 showOsd();
                 rightEpgPanel.setVisibility(View.GONE);
@@ -152,6 +188,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         epgRecyclerView.setAdapter(epgAdapter);
+    }
+
+    private void updateDirectionButtonText() {
+        if (btnToggleDirection != null) {
+            btnToggleDirection.setText(invertUpDown
+                    ? "🎮 遥控切台方向: 反转模式 (▲下一台 / ▼上一台) - 点击切换"
+                    : "🎮 遥控切台方向: 正常模式 (▲上一台 / ▼下一台) - 点击切换");
+        }
     }
 
     private void showProDialog() {
@@ -162,16 +206,51 @@ public class MainActivity extends AppCompatActivity {
         androidx.appcompat.app.AlertDialog dialog = builder.create();
 
         TextView tvDevId = dialogView.findViewById(R.id.dialogDeviceId);
+        TextView tvDesc = dialogView.findViewById(R.id.dialogProDesc);
+        android.widget.Button btnStartTrialPro = dialogView.findViewById(R.id.btnStartTrialPro);
         android.widget.EditText inputCode = dialogView.findViewById(R.id.dialogInputCode);
         android.widget.Button btnCancel = dialogView.findViewById(R.id.btnCancelPro);
         android.widget.Button btnActivate = dialogView.findViewById(R.id.btnActivatePro);
 
         tvDevId.setText(devId);
+
+        if (com.tivilite.tv.license.LicenseManager.isPermanentPro(this)) {
+            if (tvDesc != null) {
+                tvDesc.setText("🎉 本机已成功永久激活 TiviLite Pro 尊享版！全部特权已解锁。");
+                tvDesc.setTextColor(getResources().getColor(R.color.tv_badge_catchup));
+            }
+            if (inputCode != null) inputCode.setVisibility(View.GONE);
+            if (btnActivate != null) btnActivate.setVisibility(View.GONE);
+            if (btnStartTrialPro != null) btnStartTrialPro.setVisibility(View.GONE);
+            btnCancel.setText("关闭窗口");
+        } else if (com.tivilite.tv.license.LicenseManager.isTrialActive(this)) {
+            long remaining = com.tivilite.tv.license.LicenseManager.getTrialRemainingHours(this);
+            if (tvDesc != null) {
+                tvDesc.setText("⭐ 当前正在 3 天全功能免费体验中 (剩余 " + remaining + " 小时)！\n体验期内可免费使用 7 天回看。试用到期后可随时在此输入卡密买断。");
+            }
+            if (btnStartTrialPro != null) btnStartTrialPro.setVisibility(View.GONE);
+        } else {
+            if (btnStartTrialPro != null) {
+                btnStartTrialPro.setVisibility(View.VISIBLE);
+                btnStartTrialPro.setOnClickListener(v -> {
+                    com.tivilite.tv.license.LicenseManager.startTrial(this);
+                    Toast.makeText(this, "🎉 3天免费 Pro 体验已开启！", Toast.LENGTH_LONG).show();
+                    dialog.dismiss();
+                    if (settingProStatusText != null) {
+                        settingProStatusText.setText(com.tivilite.tv.license.LicenseManager.getProStatusText(this));
+                    }
+                });
+            }
+        }
+
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnActivate.setOnClickListener(v -> {
             String code = inputCode.getText().toString().trim();
             if (com.tivilite.tv.license.LicenseManager.activate(this, code)) {
                 Toast.makeText(this, "🎉 激活成功！已解锁 TiviLite Pro 永久特权", Toast.LENGTH_LONG).show();
+                if (settingProStatusText != null) {
+                    settingProStatusText.setText(com.tivilite.tv.license.LicenseManager.getProStatusText(this));
+                }
                 dialog.dismiss();
             } else {
                 Toast.makeText(this, "❌ 激活码无效，请检查设备码是否匹配", Toast.LENGTH_SHORT).show();
@@ -434,18 +513,28 @@ public class MainActivity extends AppCompatActivity {
                     commitNumberInput();
                     return true;
                 }
+                if (catchupSeekBarContainer != null && catchupSeekBarContainer.getVisibility() == View.VISIBLE && playerManager != null && playerManager.isCatchupMode()) {
+                    catchupSeekBarContainer.setVisibility(View.GONE);
+                    Channel ch = playerManager.getCurrentChannel();
+                    if (ch != null) {
+                        playerManager.playChannel(ch);
+                        showOsd();
+                        Toast.makeText(this, "📺 已退出回看，恢复实时直播", Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
+                }
                 if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
                     showOsd();
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
-                    switchChannelRelative(-1);
+                    switchChannelRelative(invertUpDown ? 1 : -1);
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (leftSidebar.getVisibility() != View.VISIBLE && rightEpgPanel.getVisibility() != View.VISIBLE) {
-                    switchChannelRelative(1);
+                    switchChannelRelative(invertUpDown ? -1 : 1);
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_MENU) {
@@ -454,6 +543,14 @@ public class MainActivity extends AppCompatActivity {
             } else if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (catchupSeekBarContainer != null && catchupSeekBarContainer.getVisibility() == View.VISIBLE) {
                     catchupSeekBarContainer.setVisibility(View.GONE);
+                    if (playerManager != null && playerManager.isCatchupMode()) {
+                        Channel ch = playerManager.getCurrentChannel();
+                        if (ch != null) {
+                            playerManager.playChannel(ch);
+                            showOsd();
+                            Toast.makeText(this, "📺 已退出回看，恢复实时直播", Toast.LENGTH_SHORT).show();
+                        }
+                    }
                     return true;
                 }
                 if (channelNumberInputBadge != null && channelNumberInputBadge.getVisibility() == View.VISIBLE) {
@@ -477,6 +574,15 @@ public class MainActivity extends AppCompatActivity {
                 if (bottomOsd.getVisibility() == View.VISIBLE) {
                     bottomOsd.setVisibility(View.GONE);
                     return true;
+                }
+                if (playerManager != null && playerManager.isCatchupMode()) {
+                    Channel ch = playerManager.getCurrentChannel();
+                    if (ch != null) {
+                        playerManager.playChannel(ch);
+                        showOsd();
+                        Toast.makeText(this, "📺 已退出回看，恢复实时直播", Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
                 }
                 long now = System.currentTimeMillis();
                 if (now - lastBackPressTime < 2000) {
@@ -565,6 +671,10 @@ public class MainActivity extends AppCompatActivity {
         if (webConfigDialog.getVisibility() == View.VISIBLE) {
             webConfigDialog.setVisibility(View.GONE);
         } else {
+            if (settingProStatusText != null) {
+                settingProStatusText.setText(com.tivilite.tv.license.LicenseManager.getProStatusText(this));
+            }
+            updateDirectionButtonText();
             String ip = WebPushServer.getLocalIpAddress();
             String url = "http://" + ip + ":8888";
             webServerUrlText.setText(url);
@@ -573,6 +683,9 @@ public class MainActivity extends AppCompatActivity {
                 qrCodeImageView.setImageBitmap(qrBmp);
             }
             webConfigDialog.setVisibility(View.VISIBLE);
+            if (btnToggleDirection != null) {
+                btnToggleDirection.requestFocus();
+            }
         }
     }
 

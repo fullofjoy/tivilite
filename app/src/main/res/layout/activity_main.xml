@@ -252,38 +252,85 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="28dp">
+            android:padding="26dp">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="扫码 / 局域网配源服务"
+                android:text="⚙️ TiviLite 偏好设置与局域网助手"
                 android:textColor="@color/tv_accent"
-                android:textSize="22sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
+            <!-- Pro Status Box -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/selector_tv_item"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/settingProStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="👑 TiviLite Pro 已永久激活"
+                    android:textColor="@color/tv_badge_catchup"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnViewProDetails"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:backgroundTint="@color/tv_accent_blue"
+                    android:text="会员详情"
+                    android:textColor="#FFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Channel Up/Down Invert Button -->
+            <Button
+                android:id="@+id/btnToggleDirection"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="#242938"
+                android:text="🎮 遥控切台方向: 正常 (▲上一台 / ▼下一台)"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="12dp"
+                android:background="#22FFFFFF" />
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="同一 Wi-Fi 下，用手机或电脑浏览器直接访问下方地址："
+                android:text="📱 局域网配源助手 (同一 Wi-Fi 手机浏览器打开):"
                 android:textColor="@color/tv_text_secondary"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
 
             <!-- QR Code Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:layout_marginVertical="10dp"
+                android:layout_marginVertical="8dp"
                 android:orientation="vertical">
 
                 <ImageView
                     android:id="@+id/qrCodeImageView"
-                    android:layout_width="180dp"
-                    android:layout_height="180dp"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
                     android:background="#FFFFFF"
-                    android:padding="8dp"
+                    android:padding="6dp"
                     android:scaleType="fitCenter" />
             </LinearLayout>
 
@@ -291,13 +338,13 @@
                 android:id="@+id/webServerUrlText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 android:background="@drawable/selector_tv_item"
-                android:padding="10dp"
+                android:padding="8dp"
                 android:text="http://192.168.1.100:8888"
                 android:textAlignment="center"
                 android:textColor="@color/tv_text_primary"
-                android:textSize="20sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -305,7 +352,7 @@
                 android:layout_height="wrap_content"
                 android:text="手机扫码直接粘贴 M3U 订阅或输入激活码！按 [返回键] 关闭本窗口。"
                 android:textColor="@color/tv_text_dim"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
@@ -365,9 +412,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="按 [← / →] 方向键快进快退 15 秒，按 [返回键] 关闭进度条"
-            android:textColor="@color/tv_text_dim"
-            android:textSize="12sp" />
+            android:text="[OK 确认] 立即返回实时直播  |  [← / →] 快退快进 15 秒  |  [返回键] 退出回看"
+            android:textColor="@color/tv_accent"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- 8. Floating Channel Number Input Badge (0-9 Digits) -->

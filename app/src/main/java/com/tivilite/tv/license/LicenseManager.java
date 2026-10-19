@@ -41,16 +41,80 @@ public class LicenseManager {
         }
     }
 
+    private static final String KEY_TRIAL_START = "trial_start_timestamp";
+    private static final long TRIAL_DURATION_MS = 3 * 24 * 3600 * 1000L; // 3 days
+
     /**
-     * 检查当前是否为 Pro 尊享会员
+     * 检查当前是否为 Pro 尊享会员 (包括永久买断与 3 天免费试用)
      */
     public static boolean isPro(Context context) {
+        if (isPermanentPro(context)) {
+            return true;
+        }
+        return isTrialActive(context);
+    }
+
+    /**
+     * 是否已永久卡密激活
+     */
+    public static boolean isPermanentPro(Context context) {
         SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         if (!sp.getBoolean(KEY_IS_PRO, false)) {
             return false;
         }
         String savedCode = sp.getString(KEY_LICENSE_CODE, "");
         return verifyLicense(context, savedCode);
+    }
+
+    /**
+     * 检查 3 天试用期是否仍在有效期内
+     */
+    public static boolean isTrialActive(Context context) {
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        long trialStart = sp.getLong(KEY_TRIAL_START, 0);
+        if (trialStart > 0) {
+            long elapsed = System.currentTimeMillis() - trialStart;
+            return elapsed >= 0 && elapsed < TRIAL_DURATION_MS;
+        }
+        return false;
+    }
+
+    /**
+     * 获取试用剩余小时数
+     */
+    public static long getTrialRemainingHours(Context context) {
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        long trialStart = sp.getLong(KEY_TRIAL_START, 0);
+        if (trialStart > 0) {
+            long remaining = TRIAL_DURATION_MS - (System.currentTimeMillis() - trialStart);
+            return Math.max(0, remaining / (3600 * 1000L));
+        }
+        return 0;
+    }
+
+    /**
+     * 开启 3 天免费试用
+     */
+    public static boolean startTrial(Context context) {
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        if (sp.getLong(KEY_TRIAL_START, 0) == 0) {
+            sp.edit().putLong(KEY_TRIAL_START, System.currentTimeMillis()).apply();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 获取当前 Pro 状态大屏描述
+     */
+    public static String getProStatusText(Context context) {
+        if (isPermanentPro(context)) {
+            return "👑 TiviLite Pro 已永久激活 (尊享特权)";
+        } else if (isTrialActive(context)) {
+            return "⭐ Pro 免费试用中 (剩余 " + getTrialRemainingHours(context) + " 小时)";
+        } else {
+            return "⭐ 社区开源版 (试用已结束，需卡密激活)";
+        }
     }
 
     /**
