@@ -329,6 +329,31 @@
                 android:textColor="@color/tv_text_primary"
                 android:textSize="13sp" />
 
+            <!-- Decoder Mode Button -->
+            <Button
+                android:id="@+id/btnToggleDecoder"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="8dp"
+                android:focusable="true"
+                android:backgroundTint="#242938"
+                android:text="🎬 解码器模式: 硬件加速 (推荐流畅) - 点击切换"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp" />
+
+            <!-- Subscription Summary Badge -->
+            <TextView
+                android:id="@+id/subscriptionSummaryText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="#15FFFFFF"
+                android:padding="8dp"
+                android:text="📁 订阅源: 暂无生效订阅 (扫码导入)"
+                android:textColor="@color/tv_accent"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
             <!-- Divider -->
             <View
                 android:layout_width="match_parent"

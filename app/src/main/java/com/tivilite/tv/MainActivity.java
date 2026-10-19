@@ -38,6 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
+import com.tivilite.tv.data.SubscriptionManager;
+import com.tivilite.tv.epg.EpgManager;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -76,6 +79,8 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnToggleDirection;
     private android.widget.Button btnCheckUpdate;
     private android.widget.Button btnToggleAutoBoot;
+    private android.widget.Button btnToggleDecoder;
+    private TextView subscriptionSummaryText;
     private CardView onboardingOverlay;
     private ImageView onboardingQrCode;
     private TextView onboardingServerUrl;
@@ -209,6 +214,24 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        btnToggleDecoder = findViewById(R.id.btnToggleDecoder);
+        if (btnToggleDecoder != null) {
+            updateDecoderButtonText();
+            btnToggleDecoder.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                int cur = playerManager.getDecoderMode();
+                int next = (cur == PlayerManager.DECODER_MODE_HARDWARE) ? PlayerManager.DECODER_MODE_SOFTWARE : PlayerManager.DECODER_MODE_HARDWARE;
+                playerManager.setDecoderMode(next);
+                updateDecoderButtonText();
+                Toast.makeText(this, next == PlayerManager.DECODER_MODE_SOFTWARE
+                        ? "🎬 已切换为软件兼容解码模式 (防闪退花屏)"
+                        : "🎬 已切换为硬件加速解码模式 (推荐流畅省电)", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        subscriptionSummaryText = findViewById(R.id.subscriptionSummaryText);
+        updateSubscriptionSummary();
+
         onboardingOverlay = findViewById(R.id.onboardingOverlay);
         onboardingQrCode = findViewById(R.id.onboardingQrCode);
         onboardingServerUrl = findViewById(R.id.onboardingServerUrl);
@@ -260,6 +283,30 @@ public class MainActivity extends AppCompatActivity {
             btnToggleAutoBoot.setText(autoBoot
                     ? "🚀 开机自动直达直播: 已开启 - 点击切换"
                     : "🚀 开机自动直达直播: 已关闭 - 点击切换");
+        }
+    }
+
+    private void updateDecoderButtonText() {
+        if (btnToggleDecoder != null && playerManager != null) {
+            boolean isSoftware = playerManager.getDecoderMode() == PlayerManager.DECODER_MODE_SOFTWARE;
+            btnToggleDecoder.setText(isSoftware
+                    ? "🎬 解码器模式: 软件兼容解码 (防闪退花屏) - 点击切换"
+                    : "🎬 解码器模式: 硬件加速解码 (推荐流畅低耗) - 点击切换");
+        }
+    }
+
+    private void updateSubscriptionSummary() {
+        if (subscriptionSummaryText != null) {
+            List<SubscriptionManager.Subscription> subs = SubscriptionManager.getSubscriptions(this);
+            int enabledCount = 0;
+            for (SubscriptionManager.Subscription s : subs) {
+                if (s.isEnabled()) enabledCount++;
+            }
+            if (subs.isEmpty()) {
+                subscriptionSummaryText.setText("📁 订阅源: 暂无生效订阅 (请扫码配源)");
+            } else {
+                subscriptionSummaryText.setText("📁 订阅源: " + enabledCount + "/" + subs.size() + " 套生效 (已聚合 " + allChannels.size() + " 个多线路频道)");
+            }
         }
     }
 
@@ -396,16 +443,47 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initWebServer() {
-        webServer = new WebPushServer(8888, new WebPushServer.OnM3UReceivedListener() {
+        webServer = new WebPushServer(this, 8888, new WebPushServer.OnM3UReceivedListener() {
             @Override
-            public void onM3UUrlReceived(String url) {
-                handler.post(() -> Toast.makeText(MainActivity.this, "📡 收到新订阅源，正在连接拉取...", Toast.LENGTH_SHORT).show());
-                fetchM3UFromUrl(url);
+            public void onM3UUrlReceived(String url, String name, boolean isAppend) {
+                handler.post(() -> Toast.makeText(MainActivity.this, "📡 收到订阅源: " + name + "，正在连接拉取...", Toast.LENGTH_SHORT).show());
+                fetchM3UFromUrl(url, name, isAppend);
             }
 
             @Override
-            public void onM3UContentReceived(String content) {
-                handler.post(() -> saveAndApplyM3U(content));
+            public void onM3UContentReceived(String content, String name, boolean isAppend) {
+                handler.post(() -> saveAndApplySubscription(name, "", content, isAppend));
+            }
+
+            @Override
+            public void onEpgUrlReceived(String epgUrl) {
+                handler.post(() -> {
+                    getSharedPreferences("tivilite_prefs", MODE_PRIVATE).edit().putString("epg_api_url", epgUrl).apply();
+                    Toast.makeText(MainActivity.this, "📺 已更新 EPG 节目单网络接口", Toast.LENGTH_SHORT).show();
+                    Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+                    if (ch != null) {
+                        updateOsd(ch);
+                        populateEpgTimeline(ch);
+                    }
+                });
+            }
+
+            @Override
+            public void onSubscriptionToggled(String id, boolean enabled) {
+                handler.post(() -> {
+                    SubscriptionManager.toggleSubscription(MainActivity.this, id, enabled);
+                    applyAggregatedSubscriptions();
+                    Toast.makeText(MainActivity.this, enabled ? "已启用该订阅" : "已停用该订阅", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onSubscriptionDeleted(String id) {
+                handler.post(() -> {
+                    SubscriptionManager.deleteSubscription(MainActivity.this, id);
+                    applyAggregatedSubscriptions();
+                    Toast.makeText(MainActivity.this, "已移除该订阅", Toast.LENGTH_SHORT).show();
+                });
             }
 
             @Override
@@ -438,19 +516,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadChannels() {
-        File cacheFile = new File(getFilesDir(), "playlist.m3u");
-        String content = "";
-        if (cacheFile.exists()) {
-            try (FileInputStream fis = new FileInputStream(cacheFile);
-                 BufferedReader br = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8))) {
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line).append("\n");
-                content = sb.toString();
-            } catch (Exception ignored) {}
-        }
+        applyAggregatedSubscriptions();
+    }
 
-        allChannels = M3UParser.parse(content);
+    private void applyAggregatedSubscriptions() {
+        allChannels = SubscriptionManager.getAggregatedChannels(this);
         groupedChannels = M3UParser.groupByCategories(this, allChannels);
 
         List<String> groups = new ArrayList<>(groupedChannels.keySet());
@@ -459,6 +529,8 @@ public class MainActivity extends AppCompatActivity {
             channelAdapter.setChannels(channels);
         });
         groupRecyclerView.setAdapter(groupAdapter);
+
+        updateSubscriptionSummary();
 
         if (!allChannels.isEmpty()) {
             if (onboardingOverlay != null) onboardingOverlay.setVisibility(View.GONE);
@@ -546,6 +618,15 @@ public class MainActivity extends AppCompatActivity {
         } else {
             osdLogo.setImageResource(R.drawable.app_banner);
         }
+
+        // Asynchronously query live EPG title for OSD
+        EpgManager.getInstance().loadEpgForChannel(this, channel, (name, currentProgram, fullSchedule) -> {
+            if (channel != null && channel.getName().equals(name)) {
+                if (currentProgram != null && playerManager != null && !playerManager.isCatchupMode()) {
+                    osdProgram.setText("正在播出：" + currentProgram.getTitle());
+                }
+            }
+        });
     }
 
     private void showOsd() {
@@ -555,19 +636,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void populateEpgTimeline(Channel channel) {
-        long now = System.currentTimeMillis();
-        long oneHour = 3600 * 1000L;
-        List<Program> list = new ArrayList<>();
-
-        // Generate mock timeline for past 3 days and today (ready for Catch-up)
-        list.add(new Program("当前直播节目", now - 1800000, now + 1800000, false));
-        list.add(new Program("早间新闻精选 (回看)", now - (oneHour * 4), now - (oneHour * 3), true));
-        list.add(new Program("晚间黄金剧场 (回看)", now - (oneHour * 12), now - (oneHour * 10), true));
-        list.add(new Program("昨日综合焦点 (回看)", now - (oneHour * 24), now - (oneHour * 22), true));
-        list.add(new Program("前日特别报道 (回看)", now - (oneHour * 48), now - (oneHour * 46), true));
-        list.add(new Program("大屏精选纪录片 (回看)", now - (oneHour * 72), now - (oneHour * 70), true));
-
-        epgAdapter.setPrograms(list);
+        if (channel == null) return;
+        EpgManager.getInstance().loadEpgForChannel(this, channel, (name, currentProgram, fullSchedule) -> {
+            if (fullSchedule != null && !fullSchedule.isEmpty()) {
+                epgAdapter.setPrograms(fullSchedule);
+            }
+            if (currentProgram != null && playerManager != null && !playerManager.isCatchupMode()) {
+                osdProgram.setText("正在播出：" + currentProgram.getTitle());
+            }
+        });
     }
 
     @Override
@@ -860,6 +937,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fetchM3UFromUrl(String urlStr) {
+        fetchM3UFromUrl(urlStr, "网络订阅", true);
+    }
+
+    private void fetchM3UFromUrl(String urlStr, String name, boolean isAppend) {
         new Thread(() -> {
             HttpURLConnection conn = null;
             try {
@@ -888,7 +969,7 @@ public class MainActivity extends AppCompatActivity {
                             String line;
                             while ((line = reader.readLine()) != null) sb.append(line).append("\n");
                             String content = sb.toString();
-                            handler.post(() -> saveAndApplyM3U(content));
+                            handler.post(() -> saveAndApplySubscription(name, urlStr, content, isAppend));
                             return;
                         }
                     } else {
@@ -904,28 +985,39 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void saveAndApplyM3U(String content) {
+    private void saveAndApplySubscription(String name, String url, String content, boolean isAppend) {
         if (content == null || content.trim().isEmpty()) {
             Toast.makeText(this, "⚠️ 推送的内容为空，未更新频道", Toast.LENGTH_SHORT).show();
             return;
         }
         try {
-            File cacheFile = new File(getFilesDir(), "playlist.m3u");
-            try (FileOutputStream fos = new FileOutputStream(cacheFile)) {
-                fos.write(content.getBytes(StandardCharsets.UTF_8));
-            }
-            loadChannels();
-            if (!allChannels.isEmpty()) {
-                currentChannelIndex = 0;
-                playSelectedChannel(allChannels.get(0));
-                Toast.makeText(this, "🎉 订阅源更新成功！共加载 " + allChannels.size() + " 个频道", Toast.LENGTH_LONG).show();
-            } else {
+            List<Channel> parsed = M3UParser.parse(content);
+            if (parsed.isEmpty()) {
                 Toast.makeText(this, "⚠️ 未在订阅中解析出有效频道，请检查源格式 (支持 M3U / TXT)", Toast.LENGTH_LONG).show();
+                return;
             }
+
+            SubscriptionManager.Subscription sub = new SubscriptionManager.Subscription(
+                    UUID.randomUUID().toString(),
+                    name != null && !name.trim().isEmpty() ? name.trim() : "自定义订阅",
+                    url != null ? url : "",
+                    content,
+                    parsed.size(),
+                    true,
+                    System.currentTimeMillis()
+            );
+
+            SubscriptionManager.addOrUpdateSubscription(this, sub, !isAppend);
+            applyAggregatedSubscriptions();
+            Toast.makeText(this, "🎉 订阅 [" + sub.getName() + "] 保存成功！共聚合 " + allChannels.size() + " 个多线路频道", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "保存订阅源异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void saveAndApplyM3U(String content) {
+        saveAndApplySubscription("手动导入", "", content, false);
     }
 
     @Override

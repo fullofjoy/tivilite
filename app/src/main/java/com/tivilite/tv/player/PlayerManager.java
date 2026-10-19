@@ -16,10 +16,16 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.ui.PlayerView;
 import com.tivilite.tv.model.Channel;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class PlayerManager {
+
+    public static final int DECODER_MODE_HARDWARE = 0;
+    public static final int DECODER_MODE_SOFTWARE = 1;
 
     public interface PlaybackCallback {
         void onLoading(boolean isLoading);
@@ -39,17 +45,40 @@ public class PlayerManager {
     private boolean isCatchupMode = false;
     private int autoRetryCount = 0;
     private String lastPlayedUrl = "";
+    private int decoderMode = DECODER_MODE_HARDWARE;
+    private PlayerView attachedPlayerView;
 
     public PlayerManager(Context context) {
         this.context = context;
+        this.decoderMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .getInt("decoder_mode", DECODER_MODE_HARDWARE);
         initPlayer();
     }
 
     private void initPlayer() {
-        // 1. Decoder fallback: Prevents fatal crash when hardware decoder runs out of instances
+        // 1. Decoder selection: Hardware accelerated (default) vs Software compatibility mode
         DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                 .setEnableDecoderFallback(true);
+
+        if (decoderMode == DECODER_MODE_SOFTWARE) {
+            renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
+            renderersFactory.setMediaCodecSelector((mimeType, requiresSecureDecoder, requiresTunnelingDecoder) -> {
+                List<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> decoderInfos =
+                        androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
+                List<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> sorted = new ArrayList<>(decoderInfos);
+                Collections.sort(sorted, (a, b) -> {
+                    boolean aIsSoftware = a.name.startsWith("c2.android.") || a.name.startsWith("OMX.google.") || a.softwareOnly;
+                    boolean bIsSoftware = b.name.startsWith("c2.android.") || b.name.startsWith("OMX.google.") || b.softwareOnly;
+                    if (aIsSoftware && !bIsSoftware) return -1;
+                    if (!aIsSoftware && bIsSoftware) return 1;
+                    return 0;
+                });
+                return sorted;
+            });
+        } else {
+            renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+            renderersFactory.setMediaCodecSelector(androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT);
+        }
 
         // 2. High compatibility standard TV User-Agent to avoid 403 forbidden
         DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory()
@@ -172,7 +201,47 @@ public class PlayerManager {
     }
 
     public void attachPlayerView(PlayerView playerView) {
+        this.attachedPlayerView = playerView;
         playerView.setPlayer(player);
+    }
+
+    public int getDecoderMode() {
+        return decoderMode;
+    }
+
+    public void setDecoderMode(int mode) {
+        if (this.decoderMode == mode) return;
+        this.decoderMode = mode;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putInt("decoder_mode", mode)
+                .apply();
+
+        PlayerView attached = this.attachedPlayerView;
+        Channel ch = this.currentChannel;
+        boolean catchup = this.isCatchupMode;
+        String lastUrl = this.lastPlayedUrl;
+        long currentPos = player != null ? player.getCurrentPosition() : 0;
+
+        if (player != null) {
+            player.release();
+            player = null;
+        }
+
+        initPlayer();
+        if (attached != null) {
+            attachPlayerView(attached);
+        }
+        if (ch != null) {
+            this.currentChannel = ch;
+            this.isCatchupMode = catchup;
+            if (!lastUrl.isEmpty()) {
+                playUrl(lastUrl);
+                if (currentPos > 0 && player != null) player.seekTo(currentPos);
+            } else {
+                playChannel(ch);
+            }
+        }
     }
 
     public void setCallback(PlaybackCallback callback) {
