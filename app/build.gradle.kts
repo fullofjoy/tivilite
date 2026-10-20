@@ -24,17 +24,54 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("tivilite.jks")
-            storePassword = "tivilite123"
-            keyAlias = "tivilite"
-            keyPassword = "tivilite123"
+            val envPath = System.getenv("RELEASE_KEYSTORE_PATH")
+            val envStorePass = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            val envAlias = System.getenv("RELEASE_KEY_ALIAS")
+            val envKeyPass = System.getenv("RELEASE_KEY_PASSWORD")
+
+            val propsFile = rootProject.file("keystore.properties")
+            val props = java.util.Properties()
+            if (propsFile.exists()) {
+                propsFile.inputStream().use { props.load(it) }
+            }
+
+            val keystoreFile = when {
+                !envPath.isNullOrEmpty() -> file(envPath)
+                props.containsKey("storeFile") -> file(props.getProperty("storeFile"))
+                file("tivilite.jks").exists() -> file("tivilite.jks")
+                else -> null
+            }
+
+            val storePass = envStorePass
+                ?: props.getProperty("storePassword")
+                ?: System.getenv("KEYSTORE_PASSWORD")
+
+            val alias = envAlias
+                ?: props.getProperty("keyAlias")
+                ?: "tivilite"
+
+            val keyPass = envKeyPass
+                ?: props.getProperty("keyPassword")
+                ?: storePass
+
+            if (keystoreFile != null && keystoreFile.exists() && !storePass.isNullOrEmpty()) {
+                storeFile = keystoreFile
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -42,7 +79,12 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 

@@ -14,3 +14,15 @@ app/build
 local.properties
 *.apk
 *.aab
+
+# Android Keystores and Security Credentials
+*.jks
+*.keystore
+*.p12
+*.pem
+*.pk8
+keystore.properties
+signing.properties
+secrets.env
+keystore_base64.txt
+

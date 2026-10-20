@@ -31,13 +31,41 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
+    - name: Setup Release Keystore from Encrypted Secrets
+      env:
+        KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+      run: |
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "Found encrypted RELEASE_KEYSTORE_BASE64 secret. Decoding to app/tivilite.jks..."
+          echo "$KEYSTORE_BASE64" | base64 -d > app/tivilite.jks
+          chmod 600 app/tivilite.jks
+        elif [ -f app/tivilite.jks ]; then
+          echo "Found local keystore file."
+        else
+          echo "Notice: RELEASE_KEYSTORE_BASE64 secret not provided. Build will fall back to debug signing."
+        fi
+
     - name: Build APK (Release with Fixed Signature)
+      env:
+        RELEASE_KEYSTORE_PATH: "tivilite.jks"
+        RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD || 'tivilite123' }}
+        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'tivilite' }}
+        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD || 'tivilite123' }}
       run: |
         gradle assembleRelease --stacktrace > build_release.log 2>&1
         echo "### Release Build Log Tail" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         tail -n 100 build_release.log >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+
+    - name: Secure Shred and Cleanup Keystore
+      if: always()
+      run: |
+        if [ -f app/tivilite.jks ]; then
+          echo "Securely wiping keystore from runner disk..."
+          shred -u -z -n 3 app/tivilite.jks 2>/dev/null || rm -f app/tivilite.jks
+          echo "Keystore securely destroyed."
+        fi
 
     - name: Push Build Log to Debug Branch
       if: always()
