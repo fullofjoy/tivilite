@@ -10,6 +10,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
+import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.TrackSelectionOverride;
@@ -969,6 +970,16 @@ public class PlayerManager {
 
     public void seekTo(long positionMs) {
         if (player != null) player.seekTo(positionMs);
+    }
+
+    public void setPlaybackSpeed(float speed) {
+        if (player != null) {
+            player.setPlaybackParameters(new PlaybackParameters(speed));
+        }
+    }
+
+    public float getPlaybackSpeed() {
+        return (player != null && player.getPlaybackParameters() != null) ? player.getPlaybackParameters().speed : 1.0f;
     }
 
     public long getCurrentPosition() {

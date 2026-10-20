@@ -93,6 +93,11 @@ public class WebPushServer {
         void onDolbyModeToggled();
         void onP2pModeToggled();
         void onAiAssistantQuery(String prompt);
+
+        // Stage 1 Mobile & Tablet
+        void onToggleOrientation();
+        void onEnterPipRequested();
+        void onCellularGuardToggled();
     }
 
     public interface StatusProvider {
@@ -273,6 +278,20 @@ public class WebPushServer {
                         serveJsonResponse(out, BlurayDolbyManager.getInstance(context).getStatusJson().toString());
                     } else if (firstLine.contains("/api/p2p") && context != null) {
                         serveJsonResponse(out, P2pEdgeAccelerationManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/device") && context != null) {
+                        try {
+                            org.json.JSONObject dev = new org.json.JSONObject();
+                            dev.put("formFactor", com.tivilite.tv.device.DeviceFormFactorManager.getInstance(context).getFormFactor().name());
+                            dev.put("formFactorName", com.tivilite.tv.device.DeviceFormFactorManager.getInstance(context).getFormFactorName());
+                            dev.put("deviceModel", com.tivilite.tv.device.DeviceFormFactorManager.getInstance(context).getDeviceModelInfo());
+                            dev.put("hasTouch", com.tivilite.tv.device.DeviceFormFactorManager.getInstance(context).hasTouchscreen());
+                            dev.put("networkBadge", com.tivilite.tv.network.CellularDataGuardManager.getInstance(context).getNetworkTypeBadge());
+                            dev.put("isCellular", com.tivilite.tv.network.CellularDataGuardManager.getInstance(context).isCellularNetwork());
+                            dev.put("cellularGuardEnabled", com.tivilite.tv.network.CellularDataGuardManager.getInstance(context).isCellularGuardEnabled());
+                            serveJsonResponse(out, dev.toString());
+                        } catch (Exception e) {
+                            serveJsonResponse(out, "{}");
+                        }
                     } else {
                         serveHtmlPage(out);
                     }
@@ -656,6 +675,20 @@ public class WebPushServer {
                     }
                 }
 
+                // Stage 1 Mobile & Tablet: Orientation, PiP & Cellular Guard
+                if (obj.has("toggle_orientation")) {
+                    listener.onToggleOrientation();
+                    return null;
+                }
+                if (obj.has("enter_pip")) {
+                    listener.onEnterPipRequested();
+                    return null;
+                }
+                if (obj.has("toggle_cellular_guard")) {
+                    listener.onCellularGuardToggled();
+                    return null;
+                }
+
                 // Phase 7: EPG Program Reminders
                 if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
                     String ch = obj.optString("channel_name");
@@ -999,6 +1032,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({toggle_p2p_mode:true})'><span>⚡</span><span id='rmP2pBtn'>P2P加速</span></button>")
           .append("<button class='key-btn' onclick='var q=prompt(\"请输入您想咨询或搜索的内容（如：90年代周星驰经典喜剧）：\");if(q)postData({ai_prompt:q})'><span>🎙️</span><span>AI助理</span></button>")
           .append("<button class='key-btn' onclick='fetch(\"/api/p2p\").then(r=>r.json()).then(d=>alert(\"⚡ P2P边缘加速看板:\\n状态: \"+d.modeName+\"\\n节省宽带: \"+d.savedBandwidthMb+\"\\nP2P率: \"+d.p2pRatioPercent))'><span>📊</span><span>省流看板</span></button>")
+          .append("</div>")
+
+          // Stage 1: Mobile & Tablet Multi-Terminal Responsive Controls
+          .append("<div class='keys-grid' style='margin-top:6px;'>")
+          .append("<button class='key-btn' onclick='postData({toggle_orientation:true})'><span>🔄</span><span>屏幕旋转</span></button>")
+          .append("<button class='key-btn' onclick='postData({enter_pip:true})'><span>🪟</span><span>系统画中画</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_cellular_guard:true})'><span>📶</span><span>流量防护</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/device\").then(r=>r.json()).then(d=>alert(\"📱 设备与多端信息:\\n型号: \"+d.deviceModel+\"\\n形态: \"+d.formFactorName+\"\\n当前网络: \"+d.networkBadge+\"\\n触摸屏: \"+(d.hasTouch?\"支持\":\"不支持\")))'><span>ℹ️</span><span>设备信息</span></button>")
           .append("</div>")
 
           // Voice Command Input

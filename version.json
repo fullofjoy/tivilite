@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "version_code": 19,
-  "release_notes": "1. 🎬 蓝光原盘 (BDMV/ISO) 与杜比视界 Profile 7/8 色彩映射引擎 (BlurayDolbyManager，针对发烧级原盘自动寻址最大码率流文件直出，智能杜比视界 Tone-Mapping 避免发灰偏色)\n2. 🤖 端侧本地大模型智能全场景影音助手 (LocalAiAssistantManager，支持自然语言多跳语义查询、年代与演员智能推荐，一键精准直达)\n3. ⚡ P2P 分布式边缘流媒体加速网络 (P2pEdgeAccelerationManager，局域网分块协同预取与命中缓存，大幅降低公网带宽并消除卡顿)\n4. 📱 手机 Web 虚拟遥控与配源中心升级 (新增蓝光杜比切换、P2P 边缘加速监控与 AI 智能语音对话交互)\n5. 🛡️ 官方持久证书签名 (SHA256: 5B:A6:... 全版本平滑无缝热更新，极致精简纯净开源)",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.9.0/TiviLite-v1.9.0.apk"
+  "version": "2.0.0",
+  "version_code": 20,
+  "release_notes": "1. 📱 全新形态智能侦测与多端自适应引擎 (DeviceFormFactorManager，深度识别智能电视 TV、手机 Phone、平板 Tablet、折叠屏 Foldable，自动匹配遥控 D-Pad 导航或触控手势)\n2. 🖐️ 手机/平板全屏智能手势交互系统 (TouchGestureOverlayManager，左侧纵滑调亮度、右侧纵滑调音量、横向滑动快进退、双击暂停播放、长按 2.0x 快速预览)\n3. 🪟 系统级原生画中画 (Picture-in-Picture) 随心小窗 (切出 App 或按 Home 键自动进入 PiP 小窗后台播放，工作刷剧两不误)\n4. 🔄 手机竖屏与横屏自适应双形态 (支持重力感应自适应旋转与一键横竖屏秒切)\n5. 📶 移动蜂窝流量防护安全锁 (CellularDataGuardManager，智能识别 4G/5G 移动流量，防偷跑流量警告)\n6. 📱 手机 Web 虚拟遥控与配源中心升级 (新增设备多端识别、旋转控制、画中画触发与流量防护)\n7. 🛡️ 官方持久证书签名 (SHA256: 5B:A6:... 全版本平滑无缝热更新，安装包维持在 8MB 极限体积)",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v2.0.0/TiviLite-v2.0.0.apk"
 }

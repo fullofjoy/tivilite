@@ -64,6 +64,15 @@ import com.tivilite.tv.ui.MeshDeviceAdapter;
 import com.tivilite.tv.player.BlurayDolbyManager;
 import com.tivilite.tv.ai.LocalAiAssistantManager;
 import com.tivilite.tv.p2p.P2pEdgeAccelerationManager;
+import com.tivilite.tv.device.DeviceFormFactorManager;
+import com.tivilite.tv.touch.TouchGestureOverlayManager;
+import com.tivilite.tv.network.CellularDataGuardManager;
+import android.content.pm.ActivityInfo;
+import android.app.PictureInPictureParams;
+import android.util.Rational;
+import android.view.MotionEvent;
+import android.content.res.Configuration;
+import android.os.Build;
 import android.content.Context;
 
 public class MainActivity extends AppCompatActivity {
@@ -225,6 +234,21 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnCloseAiAssistant;
     private LocalAiAssistantManager.AiResponse latestAiResponse;
 
+    // Stage 1: Mobile & Tablet Multi-Terminal Responsive
+    private TouchGestureOverlayManager touchGestureManager;
+    private CardView touchGestureHud;
+    private TextView touchGestureIcon;
+    private TextView touchGestureTitle;
+    private ProgressBar touchGestureProgress;
+    private CardView cellularGuardBanner;
+    private TextView cellularGuardText;
+    private TextView btnDismissCellularBanner;
+    private TextView osdDeviceBadge;
+    private TextView btnToggleOrientation;
+    private TextView btnEnterPip;
+    private android.widget.Button btnToggleCellularGuard;
+    private Runnable hideTouchHudRunnable;
+
     private CardView castHudBanner;
     private TextView castTitleText;
     private TextView castSubtitleText;
@@ -271,10 +295,20 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
+        DeviceFormFactorManager formFactorManager = DeviceFormFactorManager.getInstance(this);
+        if (formFactorManager.isTv()) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
+        }
+
         invertUpDown = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("invert_up_down", false);
         com.tivilite.tv.license.LicenseManager.startTrial(this);
 
         initViews();
+        if (formFactorManager.shouldEnableTouchGestures()) {
+            initTouchGestures();
+        }
         initPlayer();
         initWebServer();
         loadChannels();
@@ -488,6 +522,47 @@ public class MainActivity extends AppCompatActivity {
                 if (dialogCloudMesh != null) dialogCloudMesh.setVisibility(View.GONE);
             });
         }
+
+        // Stage 1: Mobile & Tablet Multi-Terminal Responsive
+        touchGestureHud = findViewById(R.id.touchGestureHud);
+        touchGestureIcon = findViewById(R.id.touchGestureIcon);
+        touchGestureTitle = findViewById(R.id.touchGestureTitle);
+        touchGestureProgress = findViewById(R.id.touchGestureProgress);
+
+        cellularGuardBanner = findViewById(R.id.cellularGuardBanner);
+        cellularGuardText = findViewById(R.id.cellularGuardText);
+        btnDismissCellularBanner = findViewById(R.id.btnDismissCellularBanner);
+        if (btnDismissCellularBanner != null) {
+            btnDismissCellularBanner.setOnClickListener(v -> {
+                if (cellularGuardBanner != null) cellularGuardBanner.setVisibility(View.GONE);
+            });
+        }
+
+        osdDeviceBadge = findViewById(R.id.osdDeviceBadge);
+        if (osdDeviceBadge != null) {
+            osdDeviceBadge.setText(DeviceFormFactorManager.getInstance(this).getFormFactorName());
+            osdDeviceBadge.setOnClickListener(v -> {
+                Toast.makeText(this, DeviceFormFactorManager.getInstance(this).getDeviceModelInfo(), Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnToggleOrientation = findViewById(R.id.btnToggleOrientation);
+        if (btnToggleOrientation != null) {
+            btnToggleOrientation.setOnClickListener(v -> toggleOrientation());
+        }
+
+        btnEnterPip = findViewById(R.id.btnEnterPip);
+        if (btnEnterPip != null) {
+            btnEnterPip.setOnClickListener(v -> enterSystemPip());
+        }
+
+        btnToggleCellularGuard = findViewById(R.id.btnToggleCellularGuard);
+        if (btnToggleCellularGuard != null) {
+            updateCellularGuardButtonText();
+            btnToggleCellularGuard.setOnClickListener(v -> toggleCellularGuard());
+        }
+
+        checkCellularDataAlert();
 
         AiSubtitleManager.getInstance(this).setSubtitleListener(new AiSubtitleManager.SubtitleListener() {
             @Override
@@ -1094,6 +1169,15 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case AI_ASSISTANT_PROMPT:
                 showAiAssistantDialog(rawCommand);
+                break;
+            case ORIENTATION_TOGGLE:
+                toggleOrientation();
+                break;
+            case PIP_ENTER:
+                enterSystemPip();
+                break;
+            case CELLULAR_GUARD_TOGGLE:
+                toggleCellularGuard();
                 break;
             case UNKNOWN:
             default:
@@ -2220,6 +2304,21 @@ public class MainActivity extends AppCompatActivity {
             public void onAiAssistantQuery(String prompt) {
                 handler.post(() -> showAiAssistantDialog(prompt));
             }
+
+            @Override
+            public void onToggleOrientation() {
+                handler.post(MainActivity.this::toggleOrientation);
+            }
+
+            @Override
+            public void onEnterPipRequested() {
+                handler.post(MainActivity.this::enterSystemPip);
+            }
+
+            @Override
+            public void onCellularGuardToggled() {
+                handler.post(MainActivity.this::toggleCellularGuard);
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2262,6 +2361,9 @@ public class MainActivity extends AppCompatActivity {
                     json.put("webdav_last_sync", WebDavClient.getFormattedLastSyncTime(MainActivity.this));
                     json.put("total_channels", allChannels != null ? allChannels.size() : 0);
                     json.put("device_id", com.tivilite.tv.license.LicenseManager.getDeviceId(MainActivity.this));
+                    json.put("form_factor", DeviceFormFactorManager.getInstance(MainActivity.this).getFormFactor().name());
+                    json.put("form_factor_name", DeviceFormFactorManager.getInstance(MainActivity.this).getFormFactorName());
+                    json.put("is_cellular", CellularDataGuardManager.getInstance(MainActivity.this).isCellularNetwork());
                     json.put("pro_status_text", com.tivilite.tv.license.LicenseManager.getProStatusText(MainActivity.this));
                     json.put("version", BuildConfig.VERSION_NAME);
                 } catch (Exception ignored) {}
@@ -2482,6 +2584,24 @@ public class MainActivity extends AppCompatActivity {
                 osdProgram.setText("正在播出：" + currentProgram.getTitle());
             }
         });
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (touchGestureManager != null) {
+            boolean isDialogVisible = (webConfigDialog != null && webConfigDialog.getVisibility() == View.VISIBLE)
+                    || (dialogAiRecommendations != null && dialogAiRecommendations.getVisibility() == View.VISIBLE)
+                    || (dialogReminders != null && dialogReminders.getVisibility() == View.VISIBLE)
+                    || (dialogCloudMesh != null && dialogCloudMesh.getVisibility() == View.VISIBLE)
+                    || (aiAssistantOverlay != null && aiAssistantOverlay.getVisibility() == View.VISIBLE)
+                    || (leftSidebar != null && leftSidebar.getVisibility() == View.VISIBLE)
+                    || (rightEpgPanel != null && rightEpgPanel.getVisibility() == View.VISIBLE);
+
+            if (!isDialogVisible) {
+                touchGestureManager.onTouchEvent(ev);
+            }
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     @Override
@@ -3025,6 +3145,7 @@ public class MainActivity extends AppCompatActivity {
         if (dialogReminders != null) dialogReminders.setVisibility(View.GONE);
         if (dialogCloudMesh != null) dialogCloudMesh.setVisibility(View.GONE);
         if (aiAssistantOverlay != null) aiAssistantOverlay.setVisibility(View.GONE);
+        if (touchGestureHud != null) touchGestureHud.setVisibility(View.GONE);
         if (bottomOsd != null) bottomOsd.setVisibility(View.GONE);
     }
 
@@ -3118,6 +3239,7 @@ public class MainActivity extends AppCompatActivity {
         tm.applyThemeToCard(dialogReminders);
         tm.applyThemeToCard(dialogCloudMesh);
         tm.applyThemeToCard(aiAssistantOverlay);
+        tm.applyThemeToCard(touchGestureHud);
         tm.applyThemeToCard(qosRadarOverlay);
         tm.applyThemeToCard(castHudBanner);
         tm.applyThemeToCard(playbackErrorOverlay);
@@ -3275,6 +3397,179 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void initTouchGestures() {
+        touchGestureManager = new TouchGestureOverlayManager(this);
+        touchGestureManager.setGestureListener(new TouchGestureOverlayManager.GestureListener() {
+            @Override
+            public void onBrightnessChanged(int percent) {
+                showTouchHud("☀️", "亮度 " + percent + "%", percent);
+            }
+
+            @Override
+            public void onVolumeChanged(int current, int max) {
+                int percent = (max > 0) ? (current * 100 / max) : 0;
+                showTouchHud("🔊", "音量 " + current + "/" + max, percent);
+            }
+
+            @Override
+            public void onSeekPreview(long offsetSeconds) {
+                String prefix = offsetSeconds >= 0 ? "+" : "";
+                showTouchHud(offsetSeconds >= 0 ? "⏩" : "⏪", "快进 " + prefix + offsetSeconds + "秒", 50);
+            }
+
+            @Override
+            public void onSeekCommit(long offsetSeconds) {
+                if (playerManager != null) {
+                    playerManager.seekBy(offsetSeconds * 1000);
+                    Toast.makeText(MainActivity.this, (offsetSeconds >= 0 ? "⏩ 快进 " : "⏪ 快退 ") + Math.abs(offsetSeconds) + "秒", Toast.LENGTH_SHORT).show();
+                }
+                hideTouchHud();
+            }
+
+            @Override
+            public void onDoubleTap() {
+                if (playerManager != null) {
+                    if (playerManager.isPlaying()) {
+                        playerManager.pause();
+                        showTouchHud("⏸️", "已暂停播放", 0);
+                    } else {
+                        playerManager.play();
+                        showTouchHud("▶️", "继续播放", 100);
+                    }
+                }
+            }
+
+            @Override
+            public void onSingleTap() {
+                if (bottomOsd != null) {
+                    if (bottomOsd.getVisibility() == View.VISIBLE) {
+                        bottomOsd.setVisibility(View.GONE);
+                    } else {
+                        showBottomOsd();
+                    }
+                }
+            }
+
+            @Override
+            public void onSpeedBoostStart(float speed) {
+                if (playerManager != null) {
+                    playerManager.setPlaybackSpeed(speed);
+                    showTouchHud("⚡", speed + "x 快速预览中...", 100);
+                }
+            }
+
+            @Override
+            public void onSpeedBoostEnd() {
+                if (playerManager != null) {
+                    playerManager.setPlaybackSpeed(1.0f);
+                    hideTouchHud();
+                }
+            }
+        });
+    }
+
+    private void showTouchHud(String icon, String title, int progress) {
+        if (touchGestureHud == null) return;
+        if (touchGestureIcon != null) touchGestureIcon.setText(icon);
+        if (touchGestureTitle != null) touchGestureTitle.setText(title);
+        if (touchGestureProgress != null) {
+            touchGestureProgress.setVisibility(progress >= 0 ? View.VISIBLE : View.GONE);
+            touchGestureProgress.setProgress(progress);
+        }
+        touchGestureHud.setVisibility(View.VISIBLE);
+
+        if (hideTouchHudRunnable != null) {
+            handler.removeCallbacks(hideTouchHudRunnable);
+        }
+        hideTouchHudRunnable = () -> {
+            if (touchGestureHud != null) touchGestureHud.setVisibility(View.GONE);
+        };
+        handler.postDelayed(hideTouchHudRunnable, 1200);
+    }
+
+    private void hideTouchHud() {
+        if (hideTouchHudRunnable != null) {
+            handler.removeCallbacks(hideTouchHudRunnable);
+        }
+        if (touchGestureHud != null) {
+            touchGestureHud.setVisibility(View.GONE);
+        }
+    }
+
+    private void enterSystemPip() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
+                builder.setAspectRatio(new Rational(16, 9));
+                enterPictureInPictureMode(builder.build());
+            } catch (Exception e) {
+                try {
+                    enterPictureInPictureMode();
+                } catch (Exception ex) {
+                    Toast.makeText(this, "进入系统画中画失败: " + ex.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            }
+        } else {
+            Toast.makeText(this, "当前系统不支持系统级画中画 (需要 Android 8.0+)", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (!DeviceFormFactorManager.getInstance(this).isTv()
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && playerManager != null && playerManager.isPlaying()) {
+            enterSystemPip();
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        if (isInPictureInPictureMode) {
+            hideAllPanels();
+            if (bottomOsd != null) bottomOsd.setVisibility(View.GONE);
+            if (castHudBanner != null) castHudBanner.setVisibility(View.GONE);
+            if (voiceHudBanner != null) voiceHudBanner.setVisibility(View.GONE);
+            if (reminderHudBanner != null) reminderHudBanner.setVisibility(View.GONE);
+            if (subtitleHudBanner != null) subtitleHudBanner.setVisibility(View.GONE);
+        }
+    }
+
+    private void toggleOrientation() {
+        int current = getRequestedOrientation();
+        if (current == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || current == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            Toast.makeText(this, "📱 屏幕已切换至竖屏模式", Toast.LENGTH_SHORT).show();
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            Toast.makeText(this, "📺 屏幕已切换至横屏大屏模式", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void toggleCellularGuard() {
+        boolean en = CellularDataGuardManager.getInstance(this).toggleCellularGuard();
+        updateCellularGuardButtonText();
+        checkCellularDataAlert();
+        Toast.makeText(this, en ? "📶 移动蜂窝流量防护: 已开启 (防流量偷跑)" : "📶 移动蜂窝流量防护: 已关闭 (允许流量播放)", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateCellularGuardButtonText() {
+        if (btnToggleCellularGuard != null) {
+            btnToggleCellularGuard.setText(CellularDataGuardManager.getInstance(this).getCellularGuardStatusText() + " - 点击切换");
+        }
+    }
+
+    private void checkCellularDataAlert() {
+        CellularDataGuardManager guard = CellularDataGuardManager.getInstance(this);
+        if (guard.isCellularNetwork() && guard.isCellularGuardEnabled()) {
+            if (cellularGuardBanner != null) cellularGuardBanner.setVisibility(View.VISIBLE);
+        } else {
+            if (cellularGuardBanner != null) cellularGuardBanner.setVisibility(View.GONE);
+        }
     }
 
     @Override

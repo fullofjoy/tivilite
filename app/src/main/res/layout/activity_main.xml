@@ -322,6 +322,52 @@
             app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
 
         <TextView
+            android:id="@+id/osdDeviceBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="#2610B981"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="📱 触控"
+            android:textColor="#10B981"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdSyncBadge"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
+            android:id="@+id/btnToggleOrientation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/selector_tv_item"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="🔄 旋转"
+            android:textColor="@color/tv_accent"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdDeviceBadge"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
+            android:id="@+id/btnEnterPip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/selector_tv_item"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="🪟 画中画"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/btnToggleOrientation"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
             android:id="@+id/osdProgram"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -922,8 +968,24 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleP2pMode"
-                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnToggleCellularGuard"
                         android:text="🎙️ 大屏 AI 智能全场景助手 (影视/问答)"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Stage 1 Mobile & Tablet: Cellular Data Guard -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleCellularGuard"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnAskAiAssistant"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="📶 移动蜂窝流量防护: 已开启 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -937,7 +999,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnAskAiAssistant"
+                        android:nextFocusUp="@+id/btnToggleCellularGuard"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
@@ -2194,6 +2256,103 @@
                     android:textColor="@color/tv_text_primary"
                     android:textSize="13sp" />
             </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Stage 1 Mobile & Tablet: Touch Gesture Floating HUD (Brightness, Volume, Seek, 2.0x Boost) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/touchGestureHud"
+        android:layout_width="180dp"
+        android:layout_height="100dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#E60D1524"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/touchGestureIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☀️"
+                android:textSize="26sp" />
+
+            <TextView
+                android:id="@+id/touchGestureTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="亮度 75%"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/touchGestureProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="120dp"
+                android:layout_height="4dp"
+                android:layout_marginTop="6dp"
+                android:max="100"
+                android:progress="75"
+                android:progressTint="@color/tv_accent" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Stage 1 Mobile & Tablet: Cellular 4G/5G Data Consumption Alert Banner -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cellularGuardBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#E6782B00"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/cellularGuardText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚠️ 正在使用 4G/5G 移动流量播放 (请注意资费消耗)"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnDismissCellularBanner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:background="#33FFFFFF"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="知道了"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

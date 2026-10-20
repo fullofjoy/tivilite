@@ -41,6 +41,9 @@ public class VoiceCommandManager {
         DOLBY_MODE_TOGGLE,
         P2P_MODE_TOGGLE,
         AI_ASSISTANT_PROMPT,
+        ORIENTATION_TOGGLE,
+        PIP_ENTER,
+        CELLULAR_GUARD_TOGGLE,
         UNKNOWN
     }
 
@@ -187,6 +190,21 @@ public class VoiceCommandManager {
         // 21. Phase 11 端侧本地大模型智能问答与检索
         if (input.contains("帮我找") || input.contains("推荐") || input.contains("我想看") || input.contains("搜电影") || input.contains("周星驰") || input.contains("科幻")) {
             return new VoiceResult(Action.AI_ASSISTANT_PROMPT, null, 0, "🎙️ 大屏 AI 智能助手正在深度检索分析...");
+        }
+
+        // 22. Stage 1 多端响应式: 屏幕旋转切换
+        if (input.contains("旋转") || input.contains("横屏") || input.contains("竖屏") || input.contains("转屏")) {
+            return new VoiceResult(Action.ORIENTATION_TOGGLE, null, 0, "🔄 正在为您切换屏幕方向");
+        }
+
+        // 23. Stage 1 多端响应式: 系统画中画
+        if (input.contains("系统画中画") || input.contains("小窗") || input.contains("悬浮窗") || input.contains("后台小窗")) {
+            return new VoiceResult(Action.PIP_ENTER, null, 0, "🪟 正在为您开启系统画中画播放");
+        }
+
+        // 24. Stage 1 多端响应式: 移动蜂窝流量防护
+        if (input.contains("流量") || input.contains("蜂窝") || input.contains("省流保护")) {
+            return new VoiceResult(Action.CELLULAR_GUARD_TOGGLE, null, 0, "📶 已切换移动蜂窝流量防护模式");
         }
 
         // 10. 数字切台 (如 "1台", "换到第12台")
