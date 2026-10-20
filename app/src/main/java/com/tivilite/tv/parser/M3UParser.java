@@ -159,13 +159,32 @@ public class M3UParser {
     }
 
     /**
-     * 仅提供用于大屏硬解/软解/网络技术验证的合规开放测试流
+     * 仅提供用于大屏硬解/软解/网络技术验证的合规开放测试流 (官方直连)
      */
     public static List<Channel> getDemoChannels() {
         List<Channel> list = new ArrayList<>();
-        Channel c1 = new Channel(1, "CGTN 官方开放流 (合规测试)", "开源演示", "https://livedoc.cgtn.com/500d/prog_index.m3u8");
+        Channel c1 = new Channel(1, "CGTN 官方新闻 (CCTV)", "央视频道", "https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8");
         c1.setLogoUrl("https://live.fanmingming.com/tv/CGTN.png");
         list.add(c1);
+
+        Channel c2 = new Channel(2, "浙江卫视 (官方蓝光 1080p)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8");
+        c2.setLogoUrl("https://live.fanmingming.com/tv/浙江卫视.png");
+        list.add(c2);
+
+        Channel c3 = new Channel(3, "钱江都市 (官方高清)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel002/1080p.m3u8");
+        c3.setLogoUrl("https://live.fanmingming.com/tv/钱江都市.png");
+        list.add(c3);
+
+        Channel c4 = new Channel(4, "浙江民生休闲 (官方高清)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel006/1080p.m3u8");
+        c4.setLogoUrl("https://live.fanmingming.com/tv/浙江民生.png");
+        list.add(c4);
+
+        Channel c5 = new Channel(5, "Big Buck Bunny (HLS全码率)", "开源测试", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+        list.add(c5);
+
+        Channel c6 = new Channel(6, "Apple 官方杜比多音轨测试流", "开源测试", "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8");
+        list.add(c6);
+
         return list;
     }
 
