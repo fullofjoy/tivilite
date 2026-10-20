@@ -1,6 +1,7 @@
 package com.tivilite.tv.server;
 
 import android.content.Context;
+import com.tivilite.tv.ai.AiRecommendationManager;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
@@ -43,6 +44,13 @@ public class WebPushServer {
         void onBufferModeToggled();
         void onRecordingToggled();
         void onWebDavSyncRequested(String url, String user, String pass, boolean isUpload, boolean autoSync);
+
+        // Phase 6
+        void onPipToggled();
+        void onPipSwapped();
+        void onPipAudioToggled();
+        void onVoiceCommandReceived(String command);
+        void onPipChannelPlayRequested(int index, String name, int number);
     }
 
     public interface StatusProvider {
@@ -170,6 +178,8 @@ public class WebPushServer {
                         dav.put("auto_sync", WebDavClient.isWebDavAutoSync(context));
                         dav.put("last_sync", WebDavClient.getFormattedLastSyncTime(context));
                         serveJsonResponse(out, dav.toString());
+                    } else if (firstLine.contains("/api/recommendations")) {
+                        serveJsonResponse(out, AiRecommendationManager.getRecommendationsJson().toString());
                     } else {
                         serveHtmlPage(out);
                     }
@@ -263,9 +273,39 @@ public class WebPushServer {
                             listener.onRecordingToggled();
                             return null;
                         }
+                        if ("pip_toggle".equals(key)) {
+                            listener.onPipToggled();
+                            return null;
+                        }
+                        if ("pip_swap".equals(key)) {
+                            listener.onPipSwapped();
+                            return null;
+                        }
+                        if ("pip_audio".equals(key)) {
+                            listener.onPipAudioToggled();
+                            return null;
+                        }
                         listener.onRemoteKeyReceived(key, val);
                         return null;
                     }
+                }
+
+                // Voice Command
+                if (requestLine.contains("/api/voice") || obj.has("voice_command") || obj.has("command")) {
+                    String cmd = obj.optString("voice_command", obj.optString("command", ""));
+                    if (!cmd.isEmpty()) {
+                        listener.onVoiceCommandReceived(cmd);
+                        return "{\"success\":true,\"message\":\"电视已接收语音指令: " + cmd + "\"}";
+                    }
+                }
+
+                // PiP Direct Play
+                if (requestLine.contains("/api/pip/play") || obj.has("pip_channel_name") || obj.has("pip_index")) {
+                    int idx = obj.optInt("pip_index", -1);
+                    String name = obj.optString("pip_channel_name", obj.optString("pip_name", ""));
+                    int num = obj.optInt("pip_number", -1);
+                    listener.onPipChannelPlayRequested(idx, name, num);
+                    return "{\"success\":true,\"message\":\"已在画中画副画面开启该频道\"}";
                 }
 
                 // Direct Channel Zap
@@ -317,6 +357,18 @@ public class WebPushServer {
                 }
                 if (obj.has("toggle_recording")) {
                     listener.onRecordingToggled();
+                    return null;
+                }
+                if (obj.has("toggle_pip")) {
+                    listener.onPipToggled();
+                    return null;
+                }
+                if (obj.has("swap_pip")) {
+                    listener.onPipSwapped();
+                    return null;
+                }
+                if (obj.has("toggle_pip_audio")) {
+                    listener.onPipAudioToggled();
                     return null;
                 }
 
@@ -534,6 +586,9 @@ public class WebPushServer {
           .append(".btn-toggle{background:rgba(16,185,129,0.2);color:#10B981;border:1px solid rgba(16,185,129,0.3);}")
           .append(".btn-file{background:#1E293B;border:1px dashed rgba(255,255,255,0.25);color:var(--accent);padding:12px;border-radius:10px;text-align:center;cursor:pointer;font-size:13px;font-weight:bold;margin-top:8px;}")
           .append(".btn-preset{background:#202534;border:1px solid rgba(255,255,255,0.12);color:var(--text);padding:12px;border-radius:10px;font-size:13px;font-weight:600;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}")
+          .append(".voice-chip{background:#1B2030;color:var(--accent);border:1px solid rgba(0,229,255,0.25);padding:4px 10px;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;display:inline-block;}")
+          .append(".voice-chip:active{background:var(--accent);color:#000;}")
+          .append(".ai-card{background:#0E1118;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:8px;}")
           .append("</style></head><body>");
 
         // 2. HTML Body & Container
@@ -547,6 +602,7 @@ public class WebPushServer {
           // Top Tab Switcher
           .append("<div class='nav-tabs'>")
           .append("<div class='nav-tab active' onclick='showTab(\"remote\")'>📱 遥控</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"ai\")'>🤖 看点</div>")
           .append("<div class='nav-tab' onclick='showTab(\"status\")'>📺 播放</div>")
           .append("<div class='nav-tab' onclick='showTab(\"channels\")'>📑 频道</div>")
           .append("<div class='nav-tab' onclick='showTab(\"recordings\")'>🔴 录制</div>")
@@ -592,6 +648,34 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({toggle_aspect:true})'><span>📐</span><span>比例</span></button>")
           .append("</div>")
 
+          // Phase 6: PiP Controls
+          .append("<div class='keys-grid'>")
+          .append("<button class='key-btn' onclick='postData({toggle_pip:true})'><span>🖼️</span><span>画中画</span></button>")
+          .append("<button class='key-btn' onclick='postData({swap_pip:true})'><span>🔄</span><span>主副对调</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_pip_audio:true})'><span>🔊</span><span>副音切换</span></button>")
+          .append("<button class='key-btn' style='background:rgba(0,229,255,0.15);color:var(--accent);' onclick='showTab(\"ai\")'><span>🤖</span><span>AI看点</span></button>")
+          .append("</div>")
+
+          // Voice Command Input
+          .append("<div style='margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;'>")
+          .append("<div style='display:flex;justify-content:space-between;align-items:center;'>")
+          .append("<label style='margin:0;'>🎙️ 语音/自然语言智能指令：</label>")
+          .append("<button id='btnVoiceRecord' onclick='startVoiceInput()' style='background:none;border:none;color:var(--accent);font-size:12px;font-weight:bold;cursor:pointer;'>🎤 麦克风说话</button>")
+          .append("</div>")
+          .append("<div style='display:flex;gap:8px;margin-top:6px;'>")
+          .append("<input type='text' id='voiceCmdInput' placeholder='如：换到CCTV5 / 调大音量 / 开启画中画' />")
+          .append("<button class='btn-primary' style='width:90px;margin-top:0;background:#00E5FF;color:#000;' onclick='sendVoiceCmd()'>🎙️ 发送</button>")
+          .append("</div>")
+          .append("<div style='display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;'>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"换到CCTV1\")'>CCTV-1</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"换到CCTV5\")'>CCTV-5</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"换到湖南卫视\")'>湖南卫视</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"开启画中画\")'>开启画中画</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"主副对调\")'>主副对调</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"调大音量\")'>调大音量</span>")
+          .append("<span class='voice-chip' onclick='quickVoice(\"开启录像\")'>开启录像</span>")
+          .append("</div></div>")
+
           // Quick Zap Input
           .append("<div style='margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;'>")
           .append("<label>快捷点播换台 (输入频道名或台号)：</label>")
@@ -616,6 +700,14 @@ public class WebPushServer {
           .append("<button class='num-btn' style='grid-column: span 2;background:#202534;' onclick='sendKey(\"ok\")'>确定/选台</button>")
           .append("</div></div>")
 
+          .append("</div></div>");
+
+        // Panel AI: Hot Recommendations
+        sb.append("<div id='tab-ai' class='tab-panel'>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>🤖 AI 实时热播看点榜</span><button class='sub-btn btn-del' onclick='fetchAiRecommendations()'>刷新</button></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:10px;'>实时提炼全国主要电视台黄金档看点摘要与热度指数，点击手机即刻转台：</p>")
+          .append("<div id='aiListContainer'><p style='color:var(--muted);font-size:12px;'>正在加载看点推荐...</p></div>")
           .append("</div></div>");
 
         // Panel 2: Now Playing & Live Status
@@ -765,13 +857,14 @@ public class WebPushServer {
           .append("function showTab(name) {")
           .append("  var tabs = document.querySelectorAll('.nav-tab');")
           .append("  var panels = document.querySelectorAll('.tab-panel');")
-          .append("  var names = ['remote', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
+          .append("  var names = ['remote', 'ai', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
           .append("  tabs.forEach(function(t, i) {")
           .append("    t.className = (names[i] === name) ? 'nav-tab active' : 'nav-tab';")
           .append("  });")
           .append("  panels.forEach(function(p) {")
           .append("    p.className = (p.id === 'tab-' + name) ? 'tab-panel active' : 'tab-panel';")
           .append("  });")
+          .append("  if (name === 'ai') fetchAiRecommendations();")
           .append("  if (name === 'channels' && allChannelsList.length === 0) fetchChannels();")
           .append("  if (name === 'status') fetchStatus();")
           .append("  if (name === 'recordings') fetchRecordings();")
@@ -936,7 +1029,8 @@ public class WebPushServer {
           .append("      + '<div class=\"ch-left\"><span class=\"ch-num\">' + (c.number < 10 ? '0' + c.number : c.number) + '</span>'")
           .append("      + '<div><div class=\"ch-title\">' + (c.is_fav ? '⭐ ' : '') + c.name + '</div>'")
           .append("      + '<div class=\"ch-group\">' + c.group + ' · ' + (c.sources || 1) + ' 条线路</div></div></div>'")
-          .append("      + '<button class=\"star-btn ' + (c.is_fav ? 'fav' : '') + '\" onclick=\"event.stopPropagation();toggleFav(\\'' + c.name + '\\')\">⭐</button>'")
+          .append("      + '<div><button class=\"sub-btn btn-toggle\" onclick=\"event.stopPropagation();pipPlayIndex(' + c.index + ',\\'' + c.name.replace(\"'\", \"\") + '\\')\">小窗</button>'")
+          .append("      + '<button class=\"star-btn ' + (c.is_fav ? 'fav' : '') + '\" onclick=\"event.stopPropagation();toggleFav(\\'' + c.name.replace(\"'\", \"\") + '\\')\">⭐</button></div>'")
           .append("      + '</div>';")
           .append("  });")
           .append("  box.innerHTML = html;")
@@ -952,9 +1046,61 @@ public class WebPushServer {
           .append("  postData({zap_index: idx});")
           .append("  showNotice('已点播换台！', true);")
           .append("}")
+          .append("function pipPlayIndex(idx, name) {")
+          .append("  postData({pip_index: idx, pip_channel_name: name});")
+          .append("  showNotice('已在画中画副画面开启: ' + name, true);")
+          .append("}")
           .append("function toggleFav(name) {")
           .append("  postData({fav_channel: name});")
           .append("  setTimeout(function(){ fetchChannels(); fetchStatus(); }, 400);")
+          .append("}")
+          .append("function sendVoiceCmd(val) {")
+          .append("  var cmd = val || document.getElementById('voiceCmdInput').value.trim();")
+          .append("  if (!cmd) return;")
+          .append("  postData({voice_command: cmd});")
+          .append("  showNotice('已发送指令: ' + cmd, true);")
+          .append("  if (document.getElementById('voiceCmdInput')) document.getElementById('voiceCmdInput').value = '';")
+          .append("}")
+          .append("function quickVoice(cmd) { sendVoiceCmd(cmd); }")
+          .append("function startVoiceInput() {")
+          .append("  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {")
+          .append("    alert('当前手机浏览器不支持语音识别API，请直接在输入框中输入文字指令发送');")
+          .append("    return;")
+          .append("  }")
+          .append("  var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;")
+          .append("  var rec = new Speech();")
+          .append("  rec.lang = 'zh-CN';")
+          .append("  rec.interimResults = false;")
+          .append("  showNotice('🎙️ 正在聆听指令，请对着手机说话...', true);")
+          .append("  rec.onresult = function(e) {")
+          .append("    if(e.results && e.results[0]) {")
+          .append("      var t = e.results[0][0].transcript;")
+          .append("      document.getElementById('voiceCmdInput').value = t;")
+          .append("      sendVoiceCmd(t);")
+          .append("    }")
+          .append("  };")
+          .append("  rec.onerror = function() { showNotice('语音输入未完成，请重试', false); };")
+          .append("  rec.start();")
+          .append("}")
+          .append("function fetchAiRecommendations() {")
+          .append("  fetch('/api/recommendations').then(function(r){return r.json();}).then(function(list){")
+          .append("    var box = document.getElementById('aiListContainer');")
+          .append("    if (!list || list.length === 0) { box.innerHTML = '<p style=\"color:var(--muted);font-size:12px;\">暂无推荐看点</p>'; return; }")
+          .append("    var html = '';")
+          .append("    list.forEach(function(item){")
+          .append("      html += '<div class=\"ai-card\"><div style=\"display:flex;justify-content:space-between;align-items:center;\">'")
+          .append("        + '<div><span style=\"background:' + item.color + ';color:#FFF;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;\">' + item.tag + '</span>'")
+          .append("        + '<strong style=\"margin-left:6px;color:var(--accent);font-size:13px;\">' + item.channel + '</strong></div>'")
+          .append("        + '<span style=\"color:#FF4D4F;font-weight:bold;font-size:12px;\">' + item.score + '</span></div>'")
+          .append("        + '<div style=\"font-size:13px;font-weight:bold;color:#FFF;margin-top:6px;\">' + item.title + '</div>'")
+          .append("        + '<div style=\"font-size:11px;color:var(--muted);margin-top:2px;\">' + item.synopsis + '</div>'")
+          .append("        + '<div style=\"display:flex;justify-content:space-between;align-items:center;margin-top:8px;\">'")
+          .append("        + '<span style=\"font-size:11px;color:#9CA3AF;\">时段: ' + item.time + '</span>'")
+          .append("        + '<button class=\"btn-primary\" style=\"width:auto;padding:4px 12px;margin:0;font-size:11px;\" onclick=\"quickVoice(\\'换到' + item.channel + '\\')\">🚀 立即转台</button>'")
+          .append("        + '</div></div>';")
+          .append("    });")
+          .append("    box.innerHTML = html;")
+          .append("  }).catch(function(){});")
           .append("}")
           .append("window.onload = function() {")
           .append("  fetchSubs(); fetchStatus();")

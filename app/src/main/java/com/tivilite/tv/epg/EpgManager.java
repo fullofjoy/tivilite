@@ -3,6 +3,7 @@ package com.tivilite.tv.epg;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import com.tivilite.tv.data.SmartChannelMatcher;
 import com.tivilite.tv.model.Channel;
 import com.tivilite.tv.model.Program;
 import java.io.BufferedReader;
@@ -211,19 +212,7 @@ public class EpgManager {
 
     public static String standardizeName(String raw) {
         if (raw == null) return "";
-        String s = raw.toUpperCase()
-                .replaceAll("[\\[\\]\\s\\-_（）()]", "")
-                .replace("高清", "")
-                .replace("超清", "")
-                .replace("1080P", "")
-                .replace("4K", "")
-                .replace("8K", "")
-                .replace("综合", "")
-                .replace("新闻", "")
-                .replace("中文国际", "")
-                .replace("CCTV-", "CCTV")
-                .trim();
-        return s;
+        return SmartChannelMatcher.matchStandardEpgName(raw);
     }
 
     private List<Program> loadFromDisk(Context context, String key) {

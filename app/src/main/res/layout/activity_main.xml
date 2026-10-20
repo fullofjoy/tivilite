@@ -505,9 +505,57 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleRecording"
-                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:nextFocusDown="@+id/btnTogglePip"
                         android:text="📁 已录制节目管理与查看 (共 0 个)"
                         android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 6: PiP Multi-View Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnTogglePip"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnRecordingsList"
+                        android:nextFocusDown="@+id/btnSwapPip"
+                        android:text="🖼️ 画中画双流分屏: 已关闭 - 点击开启"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 6: PiP Swap Main/Sub Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnSwapPip"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnTogglePip"
+                        android:nextFocusDown="@+id/btnAiRecommendations"
+                        android:text="🔄 主副画面快速对调 / 音频切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 6: AI Hot Recommendations Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnAiRecommendations"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnSwapPip"
+                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:text="🤖 AI 实时热播看点榜 (黄金档速览)"
+                        android:textColor="@color/tv_accent"
                         android:textSize="12sp" />
 
                     <!-- Best Source Benchmark Button -->
@@ -520,7 +568,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnRecordingsList"
+                        android:nextFocusUp="@+id/btnAiRecommendations"
                         android:nextFocusDown="@+id/btnWebDavSync"
                         android:text="⚡ 自动测速并优选最佳线路"
                         android:textColor="@color/tv_text_primary"
@@ -1030,5 +1078,186 @@
             android:textColor="@color/tv_text_secondary"
             android:textSize="12sp" />
     </LinearLayout>
+
+    <!-- 10. Secondary PiP Player Card (画中画双视口同屏) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/pipCard"
+        android:layout_width="320dp"
+        android:layout_height="180dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="32dp"
+        android:focusable="true"
+        android:clickable="true"
+        android:visibility="gone"
+        app:cardBackgroundColor="#000000"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="20dp"
+        app:strokeColor="#00E5FF"
+        app:strokeWidth="2dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.media3.ui.PlayerView
+                android:id="@+id/pipPlayerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:resize_mode="fit"
+                app:use_controller="false" />
+
+            <!-- PiP Top Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#99000000"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/pipChannelTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="CCTV-5 体育 (副画面)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:singleLine="true" />
+
+                <TextView
+                    android:id="@+id/pipAudioStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🔇 静音"
+                    android:textColor="#00E5FF"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- PiP Bottom Hint -->
+            <TextView
+                android:id="@+id/pipHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="#99000000"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:gravity="center"
+                android:text="[OK] 主副对调 | [长按OK] 切换声音"
+                android:textColor="#AAAAAA"
+                android:textSize="9sp" />
+        </FrameLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 11. Top Voice HUD Banner (语音唤醒指令悬浮提示) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/voiceHudBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#E6101420"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="24dp"
+        app:strokeColor="#00E5FF"
+        app:strokeWidth="1.5dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎙️ "
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/voiceHudText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="已识别：换到湖南卫视"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 12. AI Real-Time Hot Recommendations Dialog (AI 实时热播看点榜) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/dialogAiRecommendations"
+        android:layout_width="720dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:cardBackgroundColor="#F010121A"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="24dp"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="🤖 AI 实时热播看点榜 (黄金档与热搜焦点)"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="[遥控选择 · 按 OK 即转台]"
+                    android:textColor="@color/tv_text_dim"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/aiRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="280dp"
+                android:layout_marginTop="12dp" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnCloseAiDialog"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="10dp"
+                app:backgroundTint="@null"
+                android:background="@drawable/selector_tv_button"
+                android:focusable="true"
+                android:text="❌ 关闭看点榜 (返回播放)"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

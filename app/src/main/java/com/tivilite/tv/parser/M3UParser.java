@@ -1,5 +1,6 @@
 package com.tivilite.tv.parser;
 
+import com.tivilite.tv.data.SmartChannelMatcher;
 import com.tivilite.tv.model.Channel;
 import java.io.BufferedReader;
 import java.io.StringReader;
@@ -48,9 +49,11 @@ public class M3UParser {
 
                     currentChannel = new Channel(channelNumber, name, group, "");
                     currentChannel.setId(extractTag(TVG_ID_PATTERN, line, name));
-                    currentChannel.setLogoUrl(extractTag(TVG_LOGO_PATTERN, line, ""));
+                    String parsedLogo = extractTag(TVG_LOGO_PATTERN, line, "");
+                    currentChannel.setLogoUrl(SmartChannelMatcher.matchLogoUrl(name, parsedLogo));
                     currentChannel.setCatchupType(extractTag(CATCHUP_PATTERN, line, ""));
                     currentChannel.setCatchupSource(extractTag(CATCHUP_SOURCE_PATTERN, line, ""));
+                    SmartChannelMatcher.enrichChannel(currentChannel);
                 } else if (line.contains(",#genre#")) {
                     // TVBox TXT format group header (e.g. "央视频道,#genre#")
                     currentTxtGroup = line.substring(0, line.indexOf(",#genre#")).trim();
@@ -68,7 +71,8 @@ public class M3UParser {
                                 ch.addUrl(splitUrls[i].trim());
                             }
                         }
-                        ch.setLogoUrl("https://live.fanmingming.cn/tv/" + name.replace("高清", "").replace("超清", "").trim() + ".png");
+                        ch.setLogoUrl(SmartChannelMatcher.matchLogoUrl(name, ""));
+                        SmartChannelMatcher.enrichChannel(ch);
                         Channel existing = findExistingChannel(channels, name, currentTxtGroup);
                         if (existing != null) {
                             for (String u : splitUrls) {

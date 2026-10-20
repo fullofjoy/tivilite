@@ -147,6 +147,13 @@ public class PlayerManager {
     private boolean subtitlesEnabled = false;
     private PlayerView attachedPlayerView;
 
+    // Phase 6 Multi-View / Dual-Stream PiP
+    private ExoPlayer pipPlayer;
+    private PlayerView attachedPipPlayerView;
+    private Channel pipChannel;
+    private boolean isPipActive = false;
+    private boolean isPipAudioMain = true; // true: Main audio active, false: PiP audio active
+
     public PlayerManager(Context context) {
         this.context = context;
         this.decoderMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
@@ -802,7 +809,102 @@ public class PlayerManager {
         return player != null ? player.getDuration() : 0;
     }
 
+    public boolean isPipActive() {
+        return isPipActive;
+    }
+
+    public Channel getPipChannel() {
+        return pipChannel;
+    }
+
+    public boolean isPipAudioMain() {
+        return isPipAudioMain;
+    }
+
+    public void startPip(Channel channel, PlayerView pipView) {
+        if (channel == null || pipView == null) return;
+        this.pipChannel = channel;
+        this.attachedPipPlayerView = pipView;
+
+        if (pipPlayer == null) {
+            DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context)
+                    .setEnableDecoderFallback(true);
+            DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+                    .setUserAgent("Mozilla/5.0 (Linux; Android 10; TV Box) AppleWebKit/537.36 Chrome/100.0.4896.127 Safari/537.36")
+                    .setConnectTimeoutMs(8000)
+                    .setReadTimeoutMs(8000)
+                    .setAllowCrossProtocolRedirects(true);
+            DefaultDataSource.Factory dsFactory = new DefaultDataSource.Factory(context, httpFactory);
+            DefaultMediaSourceFactory msFactory = new DefaultMediaSourceFactory(dsFactory);
+
+            DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(2000, 10000, 500, 1000)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build();
+
+            pipPlayer = new ExoPlayer.Builder(context)
+                    .setRenderersFactory(renderersFactory)
+                    .setMediaSourceFactory(msFactory)
+                    .setLoadControl(loadControl)
+                    .build();
+        }
+
+        pipView.setPlayer(pipPlayer);
+        pipPlayer.setVolume(isPipAudioMain ? 0.0f : 1.0f);
+        if (player != null) {
+            player.setVolume(isPipAudioMain ? 1.0f : 0.0f);
+        }
+
+        MediaItem item = MediaItem.fromUri(channel.getUrl());
+        pipPlayer.setMediaItem(item);
+        pipPlayer.prepare();
+        pipPlayer.setPlayWhenReady(true);
+        isPipActive = true;
+    }
+
+    public void stopPip() {
+        isPipActive = false;
+        if (pipPlayer != null) {
+            pipPlayer.stop();
+            pipPlayer.clearMediaItems();
+            pipPlayer.release();
+            pipPlayer = null;
+        }
+        if (attachedPipPlayerView != null) {
+            attachedPipPlayerView.setPlayer(null);
+            attachedPipPlayerView = null;
+        }
+        pipChannel = null;
+        isPipAudioMain = true;
+        if (player != null) {
+            player.setVolume(1.0f);
+        }
+    }
+
+    public boolean togglePipAudio() {
+        if (!isPipActive || pipPlayer == null || player == null) return true;
+        isPipAudioMain = !isPipAudioMain;
+        if (isPipAudioMain) {
+            player.setVolume(1.0f);
+            pipPlayer.setVolume(0.0f);
+        } else {
+            player.setVolume(0.0f);
+            pipPlayer.setVolume(1.0f);
+        }
+        return isPipAudioMain;
+    }
+
+    public void swapPipAndMain() {
+        if (!isPipActive || pipChannel == null || currentChannel == null || attachedPipPlayerView == null) return;
+        Channel oldMain = currentChannel;
+        Channel oldPip = pipChannel;
+
+        playChannel(oldPip);
+        startPip(oldMain, attachedPipPlayerView);
+    }
+
     public void release() {
+        stopPip();
         handler.removeCallbacksAndMessages(null);
         if (player != null) {
             player.release();

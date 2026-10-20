@@ -39,10 +39,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import com.tivilite.tv.ai.AiRecommendationManager;
+import com.tivilite.tv.data.SmartChannelMatcher;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.epg.EpgManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
+import com.tivilite.tv.ui.AiRecommendationsAdapter;
+import com.tivilite.tv.voice.VoiceCommandManager;
+import android.content.Context;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -104,6 +109,29 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout remoteHintToast;
     private boolean invertUpDown = false;
     private boolean miniDrawerPreview = true;
+
+    // Phase 6: PiP Multi-View
+    private CardView pipCard;
+    private PlayerView pipPlayerView;
+    private TextView pipChannelTitle;
+    private TextView pipAudioStatus;
+    private TextView pipHint;
+    private android.widget.Button btnTogglePip;
+    private android.widget.Button btnSwapPip;
+
+    // Phase 6: Voice HUD
+    private CardView voiceHudBanner;
+    private TextView voiceHudText;
+    private final Runnable hideVoiceHudRunnable = () -> {
+        if (voiceHudBanner != null) voiceHudBanner.setVisibility(View.GONE);
+    };
+
+    // Phase 6: AI Hot Recommendations
+    private CardView dialogAiRecommendations;
+    private RecyclerView aiRecyclerView;
+    private android.widget.Button btnCloseAiDialog;
+    private android.widget.Button btnAiRecommendations;
+    private AiRecommendationsAdapter aiRecommendationsAdapter;
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -337,6 +365,57 @@ public class MainActivity extends AppCompatActivity {
             btnRecordingsList.setOnClickListener(v -> showRecordingsDialog());
         }
 
+        // Phase 6: PiP Multi-View
+        pipCard = findViewById(R.id.pipCard);
+        pipPlayerView = findViewById(R.id.pipPlayerView);
+        pipChannelTitle = findViewById(R.id.pipChannelTitle);
+        pipAudioStatus = findViewById(R.id.pipAudioStatus);
+        pipHint = findViewById(R.id.pipHint);
+
+        if (pipCard != null) {
+            pipCard.setOnClickListener(v -> swapPipAndMain());
+            pipCard.setOnLongClickListener(v -> {
+                togglePipAudio();
+                return true;
+            });
+        }
+
+        btnTogglePip = findViewById(R.id.btnTogglePip);
+        if (btnTogglePip != null) {
+            updatePipButtonsText();
+            btnTogglePip.setOnClickListener(v -> togglePip());
+        }
+
+        btnSwapPip = findViewById(R.id.btnSwapPip);
+        if (btnSwapPip != null) {
+            btnSwapPip.setOnClickListener(v -> {
+                if (playerManager != null && playerManager.isPipActive()) {
+                    swapPipAndMain();
+                } else {
+                    Toast.makeText(this, "当前未开启画中画，请先开启副画面", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        // Phase 6: AI Hot Recommendations
+        dialogAiRecommendations = findViewById(R.id.dialogAiRecommendations);
+        aiRecyclerView = findViewById(R.id.aiRecyclerView);
+        btnCloseAiDialog = findViewById(R.id.btnCloseAiDialog);
+        if (btnCloseAiDialog != null) {
+            btnCloseAiDialog.setOnClickListener(v -> {
+                if (dialogAiRecommendations != null) dialogAiRecommendations.setVisibility(View.GONE);
+            });
+        }
+
+        btnAiRecommendations = findViewById(R.id.btnAiRecommendations);
+        if (btnAiRecommendations != null) {
+            btnAiRecommendations.setOnClickListener(v -> showAiRecommendationsDialog());
+        }
+
+        // Phase 6: Voice HUD
+        voiceHudBanner = findViewById(R.id.voiceHudBanner);
+        voiceHudText = findViewById(R.id.voiceHudText);
+
         btnWebDavSync = findViewById(R.id.btnWebDavSync);
         if (btnWebDavSync != null) {
             btnWebDavSync.setOnClickListener(v -> showWebDavDialog());
@@ -486,6 +565,183 @@ public class MainActivity extends AppCompatActivity {
             List<RecordingManager.RecordingItem> list = RecordingManager.getRecordings(this);
             btnRecordingsList.setText("📁 已录制节目管理与查看 (共 " + list.size() + " 个)");
         }
+    }
+
+    private void updatePipButtonsText() {
+        if (btnTogglePip != null) {
+            boolean active = playerManager != null && playerManager.isPipActive();
+            btnTogglePip.setText(active ? "🖼️ 画中画双流分屏: 正在同屏播放 - 点击关闭" : "🖼️ 画中画双流分屏: 已关闭 - 点击开启");
+        }
+    }
+
+    private void togglePip() {
+        if (playerManager == null) return;
+        if (playerManager.isPipActive()) {
+            playerManager.stopPip();
+            if (pipCard != null) pipCard.setVisibility(View.GONE);
+            updatePipButtonsText();
+            Toast.makeText(this, "🖼️ 画中画同屏已关闭", Toast.LENGTH_SHORT).show();
+        } else {
+            if (allChannels == null || allChannels.isEmpty()) {
+                Toast.makeText(this, "暂无可用频道，无法开启画中画", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            int pipIdx = (currentChannelIndex + 1) % allChannels.size();
+            Channel pipCh = allChannels.get(pipIdx);
+            startPipWithChannel(pipCh);
+        }
+    }
+
+    private void startPipWithChannel(Channel pipCh) {
+        if (playerManager == null || pipCh == null || pipPlayerView == null || pipCard == null) return;
+        playerManager.startPip(pipCh, pipPlayerView);
+        pipCard.setVisibility(View.VISIBLE);
+        if (pipChannelTitle != null) pipChannelTitle.setText(pipCh.getName() + " (副画面)");
+        if (pipAudioStatus != null) pipAudioStatus.setText(playerManager.isPipAudioMain() ? "🔇 静音" : "🔊 发声中");
+        updatePipButtonsText();
+        Toast.makeText(this, "🖼️ 画中画已开启同屏: " + pipCh.getName(), Toast.LENGTH_SHORT).show();
+    }
+
+    private void swapPipAndMain() {
+        if (playerManager == null || !playerManager.isPipActive()) return;
+        Channel oldPip = playerManager.getPipChannel();
+        playerManager.swapPipAndMain();
+        if (oldPip != null) {
+            for (int i = 0; i < allChannels.size(); i++) {
+                if (allChannels.get(i).getNumber() == oldPip.getNumber()) {
+                    currentChannelIndex = i;
+                    break;
+                }
+            }
+            updateOsd(oldPip);
+        }
+        Channel newPip = playerManager.getPipChannel();
+        if (pipChannelTitle != null && newPip != null) {
+            pipChannelTitle.setText(newPip.getName() + " (副画面)");
+        }
+        Toast.makeText(this, "🔄 主副画面已即时对调！", Toast.LENGTH_SHORT).show();
+    }
+
+    private void togglePipAudio() {
+        if (playerManager == null || !playerManager.isPipActive()) return;
+        boolean mainActive = playerManager.togglePipAudio();
+        if (pipAudioStatus != null) {
+            pipAudioStatus.setText(mainActive ? "🔇 静音" : "🔊 发声中");
+        }
+        Toast.makeText(this, mainActive ? "🔊 已将声音切换至【主画面】" : "🔊 已将声音切换至【画中画副画面】", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showVoiceHud(String message) {
+        if (voiceHudBanner == null || voiceHudText == null) return;
+        handler.removeCallbacks(hideVoiceHudRunnable);
+        voiceHudText.setText(message);
+        voiceHudBanner.setVisibility(View.VISIBLE);
+        handler.postDelayed(hideVoiceHudRunnable, 3000);
+    }
+
+    private void handleVoiceCommand(String rawCommand) {
+        if (rawCommand == null || rawCommand.trim().isEmpty()) return;
+        VoiceCommandManager.VoiceResult res = VoiceCommandManager.parse(rawCommand, allChannels);
+        showVoiceHud(res.feedbackText);
+
+        switch (res.action) {
+            case SWITCH_CHANNEL:
+                if (res.targetChannel != null) {
+                    for (int i = 0; i < allChannels.size(); i++) {
+                        if (allChannels.get(i).getNumber() == res.targetChannel.getNumber()) {
+                            playChannelAt(i);
+                            return;
+                        }
+                    }
+                    playerManager.playChannel(res.targetChannel);
+                    updateOsd(res.targetChannel);
+                } else if (res.targetNumber > 0) {
+                    handleNumberInput(res.targetNumber);
+                }
+                break;
+            case VOLUME_UP:
+                android.media.AudioManager amUp = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (amUp != null) amUp.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_RAISE, android.media.AudioManager.FLAG_SHOW_UI);
+                break;
+            case VOLUME_DOWN:
+                android.media.AudioManager amDown = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (amDown != null) amDown.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI);
+                break;
+            case VOLUME_MUTE:
+                android.media.AudioManager amMute = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (amMute != null) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        amMute.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_TOGGLE_MUTE, android.media.AudioManager.FLAG_SHOW_UI);
+                    } else {
+                        boolean isM = amMute.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) == 0;
+                        amMute.setStreamMute(android.media.AudioManager.STREAM_MUSIC, !isM);
+                    }
+                }
+                break;
+            case ASPECT_RATIO:
+                if (playerManager != null) {
+                    String m = playerManager.toggleNextAspectRatio();
+                    updateAspectRatioButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                }
+                break;
+            case RECORD_TOGGLE:
+                toggleLiveRecording();
+                break;
+            case PIP_TOGGLE:
+                togglePip();
+                break;
+            case PIP_SWAP:
+                swapPipAndMain();
+                break;
+            case PIP_AUDIO:
+                togglePipAudio();
+                break;
+            case SUBTITLE_TOGGLE:
+                if (playerManager != null) {
+                    boolean subOn = playerManager.toggleSubtitles();
+                    updateSubtitleButtonText();
+                    if (osdSubtitle != null) osdSubtitle.setText(subOn ? "💬 字幕: 开" : "💬 字幕: 关");
+                }
+                break;
+            case FAILOVER:
+                if (playerManager != null) playerManager.switchToBestSource();
+                break;
+            case UNKNOWN:
+            default:
+                break;
+        }
+    }
+
+    private void showAiRecommendationsDialog() {
+        if (dialogAiRecommendations == null) return;
+        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+        List<AiRecommendationManager.HotProgramItem> list = AiRecommendationManager.getCuratedRecommendations();
+        if (aiRecommendationsAdapter == null) {
+            aiRecommendationsAdapter = new AiRecommendationsAdapter(list, item -> {
+                Channel ch = AiRecommendationManager.findMatchingChannel(allChannels, item.channelName);
+                if (ch != null) {
+                    for (int i = 0; i < allChannels.size(); i++) {
+                        if (allChannels.get(i).getNumber() == ch.getNumber()) {
+                            playChannelAt(i);
+                            break;
+                        }
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "当前订阅中未找到该频道源: " + item.channelName, Toast.LENGTH_SHORT).show();
+                }
+                dialogAiRecommendations.setVisibility(View.GONE);
+                showVoiceHud("🤖 AI 导播为您切至: " + item.programTitle);
+            });
+            if (aiRecyclerView != null) {
+                aiRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+                aiRecyclerView.setAdapter(aiRecommendationsAdapter);
+            }
+        } else {
+            aiRecommendationsAdapter.updateData(list);
+        }
+        dialogAiRecommendations.setVisibility(View.VISIBLE);
+        if (aiRecyclerView != null) aiRecyclerView.requestFocus();
     }
 
     private void toggleLiveRecording() {
@@ -1225,6 +1481,55 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }).start();
             }
+
+            @Override
+            public void onPipToggled() {
+                handler.post(MainActivity.this::togglePip);
+            }
+
+            @Override
+            public void onPipSwapped() {
+                handler.post(MainActivity.this::swapPipAndMain);
+            }
+
+            @Override
+            public void onPipAudioToggled() {
+                handler.post(MainActivity.this::togglePipAudio);
+            }
+
+            @Override
+            public void onVoiceCommandReceived(String command) {
+                handler.post(() -> handleVoiceCommand(command));
+            }
+
+            @Override
+            public void onPipChannelPlayRequested(int index, String name, int number) {
+                handler.post(() -> {
+                    if (allChannels == null || allChannels.isEmpty()) return;
+                    Channel target = null;
+                    if (index >= 0 && index < allChannels.size()) {
+                        target = allChannels.get(index);
+                    } else if (number > 0) {
+                        for (Channel c : allChannels) {
+                            if (c.getNumber() == number) {
+                                target = c;
+                                break;
+                            }
+                        }
+                    } else if (name != null && !name.trim().isEmpty()) {
+                        String clean = SmartChannelMatcher.cleanKey(name);
+                        for (Channel c : allChannels) {
+                            if (SmartChannelMatcher.cleanKey(c.getName()).equals(clean)) {
+                                target = c;
+                                break;
+                            }
+                        }
+                    }
+                    if (target != null) {
+                        startPipWithChannel(target);
+                    }
+                });
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -1451,6 +1756,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // 0. AI Recommendations Dialog Remote Navigation
+        if (dialogAiRecommendations != null && dialogAiRecommendations.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    dialogAiRecommendations.setVisibility(View.GONE);
+                }
+                return true;
+            }
+            return super.dispatchKeyEvent(event);
+        }
+
         // 0. Settings / Web Config Dialog Remote Navigation (Handle BOTH ACTION_DOWN and ACTION_UP)
         if (webConfigDialog != null && webConfigDialog.getVisibility() == View.VISIBLE) {
             int keyCode = event.getKeyCode();
@@ -1466,6 +1783,18 @@ public class MainActivity extends AppCompatActivity {
 
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+
+            // Shortcut: PiP Multi-view Toggle Key 'P' or KEYCODE_WINDOW
+            if (keyCode == KeyEvent.KEYCODE_WINDOW || keyCode == KeyEvent.KEYCODE_P) {
+                togglePip();
+                return true;
+            }
+
+            // Shortcut: Voice Search Key
+            if (keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == KeyEvent.KEYCODE_VOICE_ASSIST) {
+                showVoiceHud("🎙️ 请通过手机遥控器使用语音/自然语言智能换台");
+                return true;
+            }
 
             // Shortcut: Dedicated TV REC or 'R' Key for live DVR recording
             if (keyCode == KeyEvent.KEYCODE_MEDIA_RECORD || keyCode == KeyEvent.KEYCODE_R) {

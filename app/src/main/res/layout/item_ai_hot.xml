@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    android:focusable="true"
+    android:clickable="true"
+    android:background="@drawable/selector_tv_item"
+    app:cardBackgroundColor="#1A2030"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/itemAiTag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#EF4444"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:text="#焦点体育"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/itemAiChannel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="CCTV-5 体育"
+                android:textColor="@color/tv_accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/itemAiTime"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="19:35 - 21:50"
+                android:textColor="@color/tv_text_dim"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/itemAiScore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔥 9.9"
+                android:textColor="#FF4D4F"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/itemAiTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="巅峰赛事：强强对话生死战"
+            android:textColor="@color/tv_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/itemAiSynopsis"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="AI 看点：两队积分紧咬迎来争冠天王山对决！全主力首发，攻防大战一触即发！"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

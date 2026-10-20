@@ -197,6 +197,7 @@ public class SubscriptionManager {
             }
             List<Channel> channels = M3UParser.parse(sub.getContent());
             for (Channel c : channels) {
+                SmartChannelMatcher.enrichChannel(c);
                 String key = normalizeChannelKey(c.getName());
                 if (channelMap.containsKey(key)) {
                     Channel existing = channelMap.get(key);
@@ -333,19 +334,7 @@ public class SubscriptionManager {
 
     public static String normalizeChannelKey(String rawName) {
         if (rawName == null) return "";
-        return rawName.toLowerCase()
-                .replaceAll("[\\[\\]\\s\\-_（）()]", "")
-                .replace("高清", "")
-                .replace("超清", "")
-                .replace("标清", "")
-                .replace("1080p", "")
-                .replace("4k", "")
-                .replace("8k", "")
-                .replace("综合", "")
-                .replace("新闻", "")
-                .replace("中文国际", "")
-                .replace("cctv-", "cctv")
-                .trim();
+        return SmartChannelMatcher.cleanKey(rawName);
     }
 
     private static String readFileContent(File file) {

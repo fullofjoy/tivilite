@@ -10,8 +10,8 @@ android {
         applicationId = "com.tivilite.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.3.0"
+        versionCode = 14
+        versionName = "1.4.0"
 
         val privateSalt = (project.findProperty("TIVILITE_SALT") as String?) ?: "COMMUNITY_DEFAULT_SALT"
         buildConfigField("String", "LICENSE_SALT", "\"$privateSalt\"")
