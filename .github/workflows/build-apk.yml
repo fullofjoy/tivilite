@@ -70,7 +70,10 @@ jobs:
         if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "main" ]; then
           TAG_NAME="latest"
         fi
-        APK_FOUND=$(find app/build/outputs/apk/ -type f -name "*.apk" | head -n 1)
+        APK_FOUND=$(find app/build/outputs/apk/release/ -type f -name "*.apk" | head -n 1)
+        if [ -z "$APK_FOUND" ]; then
+          APK_FOUND=$(find app/build/outputs/apk/ -type f -name "*.apk" | head -n 1)
+        fi
         if [ -n "$APK_FOUND" ]; then
           echo "Found APK at $APK_FOUND"
           cp "$APK_FOUND" "TiviLite-${TAG_NAME}.apk"

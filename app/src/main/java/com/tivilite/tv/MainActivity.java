@@ -734,7 +734,7 @@ public class MainActivity extends AppCompatActivity {
                             obj.put("group", ch.getGroup());
                             obj.put("has_catchup", ch.hasCatchup());
                             obj.put("is_fav", com.tivilite.tv.favorite.FavoriteManager.isFavorite(MainActivity.this, ch.getName()));
-                            obj.put("sources", ch.getBackupUrls() != null ? ch.getBackupUrls().size() + 1 : 1);
+                            obj.put("sources", ch.getUrlCount());
                             arr.put(obj);
                         } catch (Exception ignored) {}
                     }
@@ -816,6 +816,12 @@ public class MainActivity extends AppCompatActivity {
             remoteHintToast.setVisibility(View.VISIBLE);
             handler.removeCallbacks(hideRemoteHintRunnable);
             handler.postDelayed(hideRemoteHintRunnable, 4500);
+        }
+    }
+
+    private void playChannelAt(int index) {
+        if (allChannels != null && index >= 0 && index < allChannels.size()) {
+            playSelectedChannel(allChannels.get(index));
         }
     }
 
