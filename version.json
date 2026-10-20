@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "version_code": 20,
-  "release_notes": "1. 📱 全新形态智能侦测与多端自适应引擎 (DeviceFormFactorManager，深度识别智能电视 TV、手机 Phone、平板 Tablet、折叠屏 Foldable，自动匹配遥控 D-Pad 导航或触控手势)\n2. 🖐️ 手机/平板全屏智能手势交互系统 (TouchGestureOverlayManager，左侧纵滑调亮度、右侧纵滑调音量、横向滑动快进退、双击暂停播放、长按 2.0x 快速预览)\n3. 🪟 系统级原生画中画 (Picture-in-Picture) 随心小窗 (切出 App 或按 Home 键自动进入 PiP 小窗后台播放，工作刷剧两不误)\n4. 🔄 手机竖屏与横屏自适应双形态 (支持重力感应自适应旋转与一键横竖屏秒切)\n5. 📶 移动蜂窝流量防护安全锁 (CellularDataGuardManager，智能识别 4G/5G 移动流量，防偷跑流量警告)\n6. 📱 手机 Web 虚拟遥控与配源中心升级 (新增设备多端识别、旋转控制、画中画触发与流量防护)\n7. 🛡️ 官方持久证书签名 (SHA256: 5B:A6:... 全版本平滑无缝热更新，安装包维持在 8MB 极限体积)",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v2.0.0/TiviLite-v2.0.0.apk"
+  "version": "2.1.0",
+  "version_code": 21,
+  "release_notes": "1. 👯 局域网同频秒级克隆矩阵 (LanSubscriptionMirrorManager，免配置局域网 UDP 广播，新设备一键镜像克隆客厅主机的全部订阅与收藏夹)\n2. 📲 跨终端近场流转接力协议 (UniversalHandoffManager，电视/手机/平板/电脑自组网近场感知，发现附近播放即刻浮窗弹窗提醒，一键接力无缝续播)\n3. 📼 全自动化云端与 NAS 定时录制中心 (NasDvrSchedulerManager，基于 EPG 节目的全天候后台定时录制，节目开播自动捕获并归档至 NAS/本地持久化存储)\n4. 📱 手机 Web 虚拟遥控与配源中心升级 (新增局域网克隆、近场接力拉取、云录制看板与接力设备看板)\n5. 🛡️ 官方持久证书签名 (SHA256: 5B:A6:... 全版本平滑无缝热更新，体积维持在 8MB 极限开箱体验)",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v2.1.0/TiviLite-v2.1.0.apk"
 }

@@ -67,6 +67,9 @@ import com.tivilite.tv.p2p.P2pEdgeAccelerationManager;
 import com.tivilite.tv.device.DeviceFormFactorManager;
 import com.tivilite.tv.touch.TouchGestureOverlayManager;
 import com.tivilite.tv.network.CellularDataGuardManager;
+import com.tivilite.tv.sync.LanSubscriptionMirrorManager;
+import com.tivilite.tv.mesh.UniversalHandoffManager;
+import com.tivilite.tv.record.NasDvrSchedulerManager;
 import android.content.pm.ActivityInfo;
 import android.app.PictureInPictureParams;
 import android.util.Rational;
@@ -248,6 +251,16 @@ public class MainActivity extends AppCompatActivity {
     private TextView btnEnterPip;
     private android.widget.Button btnToggleCellularGuard;
     private Runnable hideTouchHudRunnable;
+
+    // Stage 12: LAN Subscription Mirror, Universal Handoff & Cloud NAS DVR
+    private android.widget.Button btnCloneLanSubscriptions;
+    private CardView handoffPromptBanner;
+    private TextView handoffBannerTitle;
+    private TextView handoffBannerSubtitle;
+    private TextView btnAcceptHandoff;
+    private TextView btnDismissHandoff;
+    private UniversalHandoffManager.NearbySession pendingHandoffSession;
+    private Runnable hideHandoffBannerRunnable;
 
     private CardView castHudBanner;
     private TextView castTitleText;
@@ -563,6 +576,50 @@ public class MainActivity extends AppCompatActivity {
         }
 
         checkCellularDataAlert();
+
+        // Stage 12: LAN Subscription Mirroring, Universal Handoff & Cloud NAS DVR
+        btnCloneLanSubscriptions = findViewById(R.id.btnCloneLanSubscriptions);
+        if (btnCloneLanSubscriptions != null) {
+            btnCloneLanSubscriptions.setOnClickListener(v -> cloneLanSubscriptions());
+        }
+
+        handoffPromptBanner = findViewById(R.id.handoffPromptBanner);
+        handoffBannerTitle = findViewById(R.id.handoffBannerTitle);
+        handoffBannerSubtitle = findViewById(R.id.handoffBannerSubtitle);
+        btnAcceptHandoff = findViewById(R.id.btnAcceptHandoff);
+        btnDismissHandoff = findViewById(R.id.btnDismissHandoff);
+
+        if (btnAcceptHandoff != null) {
+            btnAcceptHandoff.setOnClickListener(v -> {
+                if (pendingHandoffSession != null) {
+                    acceptHandoffSession(pendingHandoffSession);
+                }
+            });
+        }
+        if (btnDismissHandoff != null) {
+            btnDismissHandoff.setOnClickListener(v -> {
+                if (handoffPromptBanner != null) handoffPromptBanner.setVisibility(View.GONE);
+            });
+        }
+
+        // Initialize Stage 12 engines
+        LanSubscriptionMirrorManager.getInstance(this);
+        NasDvrSchedulerManager.getInstance(this);
+        UniversalHandoffManager.getInstance(this).setHandoffListener(new UniversalHandoffManager.HandoffListener() {
+            @Override
+            public void onNearbySessionDetected(UniversalHandoffManager.NearbySession session) {
+                showHandoffPromptBanner(session);
+            }
+
+            @Override
+            public void onIncomingHandoffReceived(Channel channel, long timestampMs) {
+                playSelectedChannel(channel);
+                if (timestampMs > 0 && playerManager != null) {
+                    playerManager.seekTo(timestampMs);
+                }
+                Toast.makeText(MainActivity.this, "📲 收到跨屏流转接力: " + channel.getName(), Toast.LENGTH_LONG).show();
+            }
+        });
 
         AiSubtitleManager.getInstance(this).setSubtitleListener(new AiSubtitleManager.SubtitleListener() {
             @Override
@@ -2319,6 +2376,21 @@ public class MainActivity extends AppCompatActivity {
             public void onCellularGuardToggled() {
                 handler.post(MainActivity.this::toggleCellularGuard);
             }
+
+            @Override
+            public void onCloneLanSubscriptionRequested() {
+                handler.post(MainActivity.this::cloneLanSubscriptions);
+            }
+
+            @Override
+            public void onPullHandoffRequested() {
+                handler.post(MainActivity.this::pullNearbyHandoffSession);
+            }
+
+            @Override
+            public void onScheduleDvrRequested(String channelName, String channelUrl, String programTitle, long startTime, long endTime) {
+                handler.post(() -> scheduleNasDvrTask(channelName, channelUrl, programTitle, startTime, endTime));
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2547,6 +2619,7 @@ public class MainActivity extends AppCompatActivity {
 
         long currentPts = playerManager != null ? playerManager.getCurrentPosition() : 0;
         CloudMeshManager.getInstance(this).updatePlaybackState(channel.getName(), channel.getUrl(), currentPts);
+        UniversalHandoffManager.getInstance(this).updateMyPlayingState(channel, currentPts);
         AiSubtitleManager.getInstance(this).notifyStreamChanged(channel.getName());
 
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
@@ -2640,6 +2713,16 @@ public class MainActivity extends AppCompatActivity {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     playerManager.seekBy(15000);
                     Toast.makeText(this, "⏩ 快进 15 秒", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
+        }
+
+        // Stage 12: Handoff Prompt Banner dismiss on BACK
+        if (handoffPromptBanner != null && handoffPromptBanner.getVisibility() == View.VISIBLE) {
+            if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    handoffPromptBanner.setVisibility(View.GONE);
                 }
                 return true;
             }
@@ -3569,6 +3652,81 @@ public class MainActivity extends AppCompatActivity {
             if (cellularGuardBanner != null) cellularGuardBanner.setVisibility(View.VISIBLE);
         } else {
             if (cellularGuardBanner != null) cellularGuardBanner.setVisibility(View.GONE);
+        }
+    }
+
+    // Stage 12: LAN Subscription Mirroring, Universal Playback Handoff & Cloud NAS DVR
+    private void cloneLanSubscriptions() {
+        Toast.makeText(this, "🔍 正在局域网内探测已配源主机...", Toast.LENGTH_SHORT).show();
+        LanSubscriptionMirrorManager.getInstance(this).requestCloneFromLan(new LanSubscriptionMirrorManager.MirrorCallback() {
+            @Override
+            public void onMirrored(String sourceDeviceName, int subscriptionCount, int channelCount) {
+                Toast.makeText(MainActivity.this, "👯 已成功从 [" + sourceDeviceName + "] 克隆 " + subscriptionCount + " 个订阅 (" + channelCount + " 个频道)！", Toast.LENGTH_LONG).show();
+                loadSubscriptions();
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(MainActivity.this, "⚠️ " + message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void pullNearbyHandoffSession() {
+        UniversalHandoffManager.NearbySession session = UniversalHandoffManager.getInstance(this).getLatestNearbySession();
+        if (session != null) {
+            acceptHandoffSession(session);
+        } else {
+            Toast.makeText(this, "⚠️ 未探测到局域网内正在播放的附近设备", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void acceptHandoffSession(UniversalHandoffManager.NearbySession session) {
+        if (session == null || session.channelUrl == null || session.channelUrl.isEmpty()) return;
+        Channel target = null;
+        if (allChannels != null) {
+            for (Channel c : allChannels) {
+                if (session.channelUrl.equals(c.getUrl()) || (session.channelName != null && session.channelName.equals(c.getName()))) {
+                    target = c;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            target = new Channel(8889, session.channelName != null ? session.channelName : "近场接力", "📲 跨屏接力续播", session.channelUrl);
+        }
+        playSelectedChannel(target);
+        if (session.timestampMs > 0 && playerManager != null) {
+            playerManager.seekTo(session.timestampMs);
+        }
+        if (handoffPromptBanner != null) handoffPromptBanner.setVisibility(View.GONE);
+        Toast.makeText(this, "📲 已接力从 [" + session.deviceName + "] 续播: " + target.getName(), Toast.LENGTH_LONG).show();
+    }
+
+    private void scheduleNasDvrTask(String channelName, String channelUrl, String programTitle, long startTime, long endTime) {
+        NasDvrSchedulerManager.getInstance(this).scheduleRecording(channelName, channelUrl, programTitle, startTime, endTime);
+        Toast.makeText(this, "📼 已安排后台NAS/云端定时录制: " + programTitle, Toast.LENGTH_SHORT).show();
+    }
+
+    private void showHandoffPromptBanner(UniversalHandoffManager.NearbySession session) {
+        if (session == null || isDestroyed() || isFinishing()) return;
+        if (playerManager != null && playerManager.isPlaying()) {
+            return; // Don't interrupt if already actively playing
+        }
+        pendingHandoffSession = session;
+        if (handoffPromptBanner != null) {
+            if (handoffBannerTitle != null) {
+                handoffBannerTitle.setText("发现附近设备 [" + session.deviceName + "] 正在播放");
+            }
+            if (handoffBannerSubtitle != null) {
+                handoffBannerSubtitle.setText(session.channelName);
+            }
+            handoffPromptBanner.setVisibility(View.VISIBLE);
+            handler.removeCallbacks(hideHandoffBannerRunnable);
+            hideHandoffBannerRunnable = () -> {
+                if (handoffPromptBanner != null) handoffPromptBanner.setVisibility(View.GONE);
+            };
+            handler.postDelayed(hideHandoffBannerRunnable, 12000); // 12s auto hide
         }
     }
 

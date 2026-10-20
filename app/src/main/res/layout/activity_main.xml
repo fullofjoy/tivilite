@@ -984,8 +984,24 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnAskAiAssistant"
-                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnCloneLanSubscriptions"
                         android:text="📶 移动蜂窝流量防护: 已开启 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Stage 12: LAN Zero-Config Subscription Mirroring -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnCloneLanSubscriptions"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleCellularGuard"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="👯 局域网同频克隆: 一键发现并克隆已配源设备"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -999,7 +1015,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleCellularGuard"
+                        android:nextFocusUp="@+id/btnCloneLanSubscriptions"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
@@ -2353,6 +2369,88 @@
                 android:text="知道了"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Stage 12: Universal Playback Handoff Prompt Banner (近场流转接力悬浮提示) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/handoffPromptBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="72dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#E61A237E"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📲"
+                android:textSize="18sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/handoffBannerTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="探测到附近设备正在播放"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/handoffBannerSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="客厅 TV: CCTV-5 体育 (01:23:45)"
+                    android:textColor="#B0BEC5"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnAcceptHandoff"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:background="#3D7BFD"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:text="一键接力续播"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/btnDismissHandoff"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="#33FFFFFF"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="忽略"
+                android:textColor="#B0BEC5"
+                android:textSize="12sp"
+                android:focusable="true" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

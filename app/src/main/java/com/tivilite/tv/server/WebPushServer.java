@@ -98,6 +98,11 @@ public class WebPushServer {
         void onToggleOrientation();
         void onEnterPipRequested();
         void onCellularGuardToggled();
+
+        // Stage 12: LAN Subscription Mirror, Universal Handoff & Cloud NAS DVR
+        void onCloneLanSubscriptionRequested();
+        void onPullHandoffRequested();
+        void onScheduleDvrRequested(String channelName, String channelUrl, String programTitle, long startTime, long endTime);
     }
 
     public interface StatusProvider {
@@ -278,6 +283,12 @@ public class WebPushServer {
                         serveJsonResponse(out, BlurayDolbyManager.getInstance(context).getStatusJson().toString());
                     } else if (firstLine.contains("/api/p2p") && context != null) {
                         serveJsonResponse(out, P2pEdgeAccelerationManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/mirror") && context != null) {
+                        serveJsonResponse(out, com.tivilite.tv.sync.LanSubscriptionMirrorManager.getInstance(context).getMirrorStatusJson().toString());
+                    } else if (firstLine.contains("/api/handoff") && context != null) {
+                        serveJsonResponse(out, com.tivilite.tv.mesh.UniversalHandoffManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/dvr") && context != null) {
+                        serveJsonResponse(out, com.tivilite.tv.record.NasDvrSchedulerManager.getInstance(context).getStatusJson().toString());
                     } else if (firstLine.contains("/api/device") && context != null) {
                         try {
                             org.json.JSONObject dev = new org.json.JSONObject();
@@ -689,6 +700,32 @@ public class WebPushServer {
                     return null;
                 }
 
+                // Stage 12: LAN Subscription Mirror, Universal Handoff & Cloud NAS DVR
+                if (requestLine.contains("/api/mirror/clone") || obj.has("mirror_clone")) {
+                    listener.onCloneLanSubscriptionRequested();
+                    return "{\"success\":true,\"message\":\"已发起局域网订阅探测与克隆同步\"}";
+                }
+                if (requestLine.contains("/api/handoff/pull") || obj.has("handoff_pull")) {
+                    listener.onPullHandoffRequested();
+                    return "{\"success\":true,\"message\":\"已发起近场播放接力提取\"}";
+                }
+                if (requestLine.contains("/api/dvr/schedule") || obj.has("dvr_schedule")) {
+                    String ch = obj.optString("channel_name");
+                    String prog = obj.optString("program_title");
+                    long st = obj.optLong("start_time");
+                    long et = obj.optLong("end_time");
+                    String url = obj.optString("channel_url", "");
+                    listener.onScheduleDvrRequested(ch, url, prog, st, et);
+                    return "{\"success\":true,\"message\":\"已安排后台NAS/云端定时录制: " + prog + "\"}";
+                }
+                if (requestLine.contains("/api/dvr/cancel") || obj.has("dvr_cancel_id")) {
+                    String id = obj.optString("dvr_cancel_id", obj.optString("id", ""));
+                    if (context != null && !id.isEmpty()) {
+                        com.tivilite.tv.record.NasDvrSchedulerManager.getInstance(context).cancelTask(id);
+                        return "{\"success\":true,\"message\":\"已取消该定时录制任务\"}";
+                    }
+                }
+
                 // Phase 7: EPG Program Reminders
                 if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
                     String ch = obj.optString("channel_name");
@@ -1040,6 +1077,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({enter_pip:true})'><span>🪟</span><span>系统画中画</span></button>")
           .append("<button class='key-btn' onclick='postData({toggle_cellular_guard:true})'><span>📶</span><span>流量防护</span></button>")
           .append("<button class='key-btn' onclick='fetch(\"/api/device\").then(r=>r.json()).then(d=>alert(\"📱 设备与多端信息:\\n型号: \"+d.deviceModel+\"\\n形态: \"+d.formFactorName+\"\\n当前网络: \"+d.networkBadge+\"\\n触摸屏: \"+(d.hasTouch?\"支持\":\"不支持\")))'><span>ℹ️</span><span>设备信息</span></button>")
+          .append("</div>")
+
+          // Stage 12: LAN Subscription Mirroring, Universal Playback Handoff & Cloud NAS DVR
+          .append("<div class='keys-grid' style='margin-top:6px;'>")
+          .append("<button class='key-btn' onclick='postData({mirror_clone:true})'><span>👯</span><span>局域网克隆</span></button>")
+          .append("<button class='key-btn' onclick='postData({handoff_pull:true})'><span>📲</span><span>近场接力</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/dvr\").then(r=>r.json()).then(d=>alert(\"📼 NAS/云端录制队列 (\"+d.taskCount+\" 个):\\n录制中: \"+(d.isRecordingNow?d.activeProgram:\"无\")))'><span>📼</span><span>云录制状态</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/handoff\").then(r=>r.json()).then(d=>alert(\"📲 近场发现设备 (\"+d.sessionCount+\" 个):\\n\"+JSON.stringify(d.nearbySessions,null,2)))'><span>🔄</span><span>接力设备</span></button>")
           .append("</div>")
 
           // Voice Command Input
