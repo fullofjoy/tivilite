@@ -38,6 +38,9 @@ public class VoiceCommandManager {
         AI_SUBTITLE_TOGGLE,
         WEBRTC_SYNC_TOGGLE,
         CLOUD_MESH_DIALOG,
+        DOLBY_MODE_TOGGLE,
+        P2P_MODE_TOGGLE,
+        AI_ASSISTANT_PROMPT,
         UNKNOWN
     }
 
@@ -169,6 +172,21 @@ public class VoiceCommandManager {
         // 18. Phase 10 局域网设备自组网与流转接力
         if (input.contains("流转接力") || input.contains("设备网格") || input.contains("自组网") || input.contains("多房电视") || input.contains("卧室接力")) {
             return new VoiceResult(Action.CLOUD_MESH_DIALOG, null, 0, "☁️ 正在为您打开局域网设备自组网与流转接力");
+        }
+
+        // 19. Phase 11 蓝光原盘与杜比视界色彩映射
+        if (input.contains("杜比") || input.contains("dolby") || input.contains("原盘") || input.contains("蓝光") || input.contains("色彩映射") || input.contains("hdr10")) {
+            return new VoiceResult(Action.DOLBY_MODE_TOGGLE, null, 0, "🎬 已切换蓝光原盘与杜比视界色彩映射模式");
+        }
+
+        // 20. Phase 11 P2P 分布式边缘加速网络
+        if (input.contains("p2p") || input.contains("边缘加速") || input.contains("省流") || input.contains("对等加速") || input.contains("局域网加速")) {
+            return new VoiceResult(Action.P2P_MODE_TOGGLE, null, 0, "⚡ 已切换 P2P 分布式边缘加速模式");
+        }
+
+        // 21. Phase 11 端侧本地大模型智能问答与检索
+        if (input.contains("帮我找") || input.contains("推荐") || input.contains("我想看") || input.contains("搜电影") || input.contains("周星驰") || input.contains("科幻")) {
+            return new VoiceResult(Action.AI_ASSISTANT_PROMPT, null, 0, "🎙️ 大屏 AI 智能助手正在深度检索分析...");
         }
 
         // 10. 数字切台 (如 "1台", "换到第12台")

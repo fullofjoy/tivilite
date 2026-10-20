@@ -606,8 +606,12 @@ public class PlayerManager {
     public String getVideoStreamBadge() {
         if (player == null) return "";
         Format format = player.getVideoFormat();
-        if (format == null) return "";
-        return PictureQualityManager.getInstance(context).getHdrAndResolutionBadge(format);
+        String base = format != null ? PictureQualityManager.getInstance(context).getHdrAndResolutionBadge(format) : "";
+        if (currentChannel != null && BlurayDolbyManager.getInstance(context).isBluRayOrDolbyStream(currentChannel.getName(), currentChannel.getUrl())) {
+            String dvBadge = BlurayDolbyManager.getInstance(context).getDolbyBadge();
+            return !base.isEmpty() ? (base + " · " + dvBadge) : dvBadge;
+        }
+        return base;
     }
 
     public List<SubtitleTrackInfo> getSubtitleTracks() {
@@ -915,6 +919,7 @@ public class PlayerManager {
         // Phase 8 Plugin dynamic URL resolution & header injection
         PluginManager.ResolvedStream resolved = PluginManager.getInstance(context).resolve(url);
         String targetUrl = (resolved != null && resolved.url != null) ? resolved.url : url;
+        targetUrl = BlurayDolbyManager.getInstance(context).resolveBluRayPlayablePath(targetUrl);
         if (httpDataSourceFactory != null && resolved != null && resolved.headers != null && !resolved.headers.isEmpty()) {
             httpDataSourceFactory.setDefaultRequestProperties(resolved.headers);
         }

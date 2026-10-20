@@ -874,8 +874,56 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleWebRtcSync"
-                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnToggleDolbyMode"
                         android:text="☁️ 局域网多房设备自组网与流转接力"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 11: Blu-ray ISO/BDMV & Dolby Vision -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleDolbyMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnViewCloudMesh"
+                        android:nextFocusDown="@+id/btnToggleP2pMode"
+                        android:text="🎬 蓝光原盘与杜比视界: 智能自适应 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 11: P2P Edge Acceleration Mesh -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleP2pMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleDolbyMode"
+                        android:nextFocusDown="@+id/btnAskAiAssistant"
+                        android:text="⚡ P2P 分布式边缘加速: 智能自适应 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 11: On-device Local AI Assistant -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnAskAiAssistant"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleP2pMode"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="🎙️ 大屏 AI 智能全场景助手 (影视/问答)"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -889,7 +937,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnViewCloudMesh"
+                        android:nextFocusUp="@+id/btnAskAiAssistant"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
@@ -2042,6 +2090,110 @@
                 android:text="关闭自组网窗口 (按返回键亦可)"
                 android:textColor="@color/tv_text_primary"
                 android:textSize="13sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 11: On-Device AI Assistant Dialog -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/aiAssistantOverlay"
+        android:layout_width="660dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#F20D1524"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="🎙️ TiviLite 大屏 AI 智能助手"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="端侧本地知识图谱"
+                    android:textColor="@color/tv_text_dim"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/aiAssistantPromptText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#20FFFFFF"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:text="问：帮我找90年代周星驰经典无厘头搞笑电影"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/aiAssistantAnswerText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="4dp"
+                android:text="🎬 为您检索到 90 年代星爷无厘头经典电影精选：《大话西游》、《唐伯虎点秋香》、《喜剧之王》。"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnAiAssistantAction"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    app:backgroundTint="@null"
+                    android:background="@drawable/selector_tv_button"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:text="▶️ 立即播放推荐内容"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnCloseAiAssistant"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    app:backgroundTint="@null"
+                    android:background="@drawable/selector_tv_button"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:text="关闭助手 (返回键)"
+                    android:textColor="@color/tv_text_primary"
+                    android:textSize="13sp" />
+            </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

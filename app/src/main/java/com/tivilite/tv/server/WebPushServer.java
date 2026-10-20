@@ -14,6 +14,9 @@ import com.tivilite.tv.ui.ThemeManager;
 import com.tivilite.tv.subtitle.AiSubtitleManager;
 import com.tivilite.tv.sync.WebRtcSyncManager;
 import com.tivilite.tv.mesh.CloudMeshManager;
+import com.tivilite.tv.player.BlurayDolbyManager;
+import com.tivilite.tv.ai.LocalAiAssistantManager;
+import com.tivilite.tv.p2p.P2pEdgeAccelerationManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
@@ -85,6 +88,11 @@ public class WebPushServer {
         void onAiSubtitleToggled();
         void onWebRtcSyncToggled();
         void onMeshHandoffRequested(String targetDeviceId);
+
+        // Phase 11
+        void onDolbyModeToggled();
+        void onP2pModeToggled();
+        void onAiAssistantQuery(String prompt);
     }
 
     public interface StatusProvider {
@@ -261,6 +269,10 @@ public class WebPushServer {
                         serveJsonResponse(out, WebRtcSyncManager.getInstance(context).getStatusJson().toString());
                     } else if (firstLine.contains("/api/mesh") && context != null) {
                         serveJsonResponse(out, CloudMeshManager.getInstance(context).getMeshStatusJson().toString());
+                    } else if (firstLine.contains("/api/cinema") && context != null) {
+                        serveJsonResponse(out, BlurayDolbyManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/p2p") && context != null) {
+                        serveJsonResponse(out, P2pEdgeAccelerationManager.getInstance(context).getStatusJson().toString());
                     } else {
                         serveHtmlPage(out);
                     }
@@ -627,6 +639,23 @@ public class WebPushServer {
                     }
                 }
 
+                // Phase 11: Blu-ray/Dolby Vision, P2P Acceleration & Local AI Assistant
+                if (obj.has("toggle_dolby_mode")) {
+                    listener.onDolbyModeToggled();
+                    return null;
+                }
+                if (obj.has("toggle_p2p_mode")) {
+                    listener.onP2pModeToggled();
+                    return null;
+                }
+                if (requestLine.contains("/api/ai/ask") || obj.has("ai_prompt")) {
+                    String p = obj.optString("ai_prompt", obj.optString("prompt", ""));
+                    if (!p.isEmpty()) {
+                        listener.onAiAssistantQuery(p);
+                        return "{\"success\":true,\"message\":\"大屏 AI 助手已接收问题并正在解析执行\"}";
+                    }
+                }
+
                 // Phase 7: EPG Program Reminders
                 if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
                     String ch = obj.optString("channel_name");
@@ -962,6 +991,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({toggle_webrtc_sync:true})'><span>⚡</span><span id='rmSyncBtn'>极速同步</span></button>")
           .append("<button class='key-btn' onclick='fetch(\"/api/mesh\").then(r=>r.json()).then(d=>alert(\"☁️ 自组网设备列表 (\"+d.peerCount+\" 台):\\n\"+JSON.stringify(d.peers,null,2)))'><span>☁️</span><span>Mesh网格</span></button>")
           .append("<button class='key-btn' onclick='fetch(\"/api/sync\").then(r=>r.json()).then(d=>alert(\"⚡ 同屏同步模式: \"+d.syncModeName))'><span>📡</span><span>时钟微调</span></button>")
+          .append("</div>")
+
+          // Phase 11: Blu-ray/Dolby, P2P Edge & AI Assistant
+          .append("<div class='keys-grid' style='margin-top:6px;'>")
+          .append("<button class='key-btn' onclick='postData({toggle_dolby_mode:true})'><span>🎬</span><span id='rmDvBtn'>杜比原盘</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_p2p_mode:true})'><span>⚡</span><span id='rmP2pBtn'>P2P加速</span></button>")
+          .append("<button class='key-btn' onclick='var q=prompt(\"请输入您想咨询或搜索的内容（如：90年代周星驰经典喜剧）：\");if(q)postData({ai_prompt:q})'><span>🎙️</span><span>AI助理</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/p2p\").then(r=>r.json()).then(d=>alert(\"⚡ P2P边缘加速看板:\\n状态: \"+d.modeName+\"\\n节省宽带: \"+d.savedBandwidthMb+\"\\nP2P率: \"+d.p2pRatioPercent))'><span>📊</span><span>省流看板</span></button>")
           .append("</div>")
 
           // Voice Command Input

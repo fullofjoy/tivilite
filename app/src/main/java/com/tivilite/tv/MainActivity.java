@@ -61,6 +61,9 @@ import com.tivilite.tv.subtitle.AiSubtitleManager;
 import com.tivilite.tv.sync.WebRtcSyncManager;
 import com.tivilite.tv.mesh.CloudMeshManager;
 import com.tivilite.tv.ui.MeshDeviceAdapter;
+import com.tivilite.tv.player.BlurayDolbyManager;
+import com.tivilite.tv.ai.LocalAiAssistantManager;
+import com.tivilite.tv.p2p.P2pEdgeAccelerationManager;
 import android.content.Context;
 
 public class MainActivity extends AppCompatActivity {
@@ -210,6 +213,17 @@ public class MainActivity extends AppCompatActivity {
     private TextView meshEmptyText;
     private android.widget.Button btnCloseMeshDialog;
     private MeshDeviceAdapter meshDeviceAdapter;
+
+    // Phase 11: Blu-ray/Dolby Vision, P2P Edge & Local AI Assistant
+    private android.widget.Button btnToggleDolbyMode;
+    private android.widget.Button btnToggleP2pMode;
+    private android.widget.Button btnAskAiAssistant;
+    private CardView aiAssistantOverlay;
+    private TextView aiAssistantPromptText;
+    private TextView aiAssistantAnswerText;
+    private android.widget.Button btnAiAssistantAction;
+    private android.widget.Button btnCloseAiAssistant;
+    private LocalAiAssistantManager.AiResponse latestAiResponse;
 
     private CardView castHudBanner;
     private TextView castTitleText;
@@ -416,6 +430,47 @@ public class MainActivity extends AppCompatActivity {
         btnViewCloudMesh = findViewById(R.id.btnViewCloudMesh);
         if (btnViewCloudMesh != null) {
             btnViewCloudMesh.setOnClickListener(v -> showCloudMeshDialog());
+        }
+
+        btnToggleDolbyMode = findViewById(R.id.btnToggleDolbyMode);
+        if (btnToggleDolbyMode != null) {
+            updateDolbyButtonText();
+            btnToggleDolbyMode.setOnClickListener(v -> toggleDolbyMode());
+        }
+
+        btnToggleP2pMode = findViewById(R.id.btnToggleP2pMode);
+        if (btnToggleP2pMode != null) {
+            updateP2pButtonText();
+            btnToggleP2pMode.setOnClickListener(v -> toggleP2pMode());
+        }
+
+        btnAskAiAssistant = findViewById(R.id.btnAskAiAssistant);
+        if (btnAskAiAssistant != null) {
+            btnAskAiAssistant.setOnClickListener(v -> showAiAssistantDialog("90年代周星驰经典喜剧电影"));
+        }
+
+        aiAssistantOverlay = findViewById(R.id.aiAssistantOverlay);
+        aiAssistantPromptText = findViewById(R.id.aiAssistantPromptText);
+        aiAssistantAnswerText = findViewById(R.id.aiAssistantAnswerText);
+        btnAiAssistantAction = findViewById(R.id.btnAiAssistantAction);
+        btnCloseAiAssistant = findViewById(R.id.btnCloseAiAssistant);
+        if (btnCloseAiAssistant != null) {
+            btnCloseAiAssistant.setOnClickListener(v -> {
+                if (aiAssistantOverlay != null) aiAssistantOverlay.setVisibility(View.GONE);
+            });
+        }
+        if (btnAiAssistantAction != null) {
+            btnAiAssistantAction.setOnClickListener(v -> {
+                if (latestAiResponse != null) {
+                    if ("PLAY_CHANNEL".equals(latestAiResponse.action) && latestAiResponse.targetChannel != null) {
+                        playSelectedChannel(latestAiResponse.targetChannel);
+                    } else if ("PLAY_NAS".equals(latestAiResponse.action) && latestAiResponse.targetNasPath != null) {
+                        Channel ch = new Channel(9999, "🎬 " + latestAiResponse.prompt, "📁 家庭 NAS 影视库", latestAiResponse.targetNasPath);
+                        playSelectedChannel(ch);
+                    }
+                    if (aiAssistantOverlay != null) aiAssistantOverlay.setVisibility(View.GONE);
+                }
+            });
         }
 
         subtitleHudBanner = findViewById(R.id.subtitleHudBanner);
@@ -1030,6 +1085,15 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case CLOUD_MESH_DIALOG:
                 showCloudMeshDialog();
+                break;
+            case DOLBY_MODE_TOGGLE:
+                toggleDolbyMode();
+                break;
+            case P2P_MODE_TOGGLE:
+                toggleP2pMode();
+                break;
+            case AI_ASSISTANT_PROMPT:
+                showAiAssistantDialog(rawCommand);
                 break;
             case UNKNOWN:
             default:
@@ -2141,6 +2205,21 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "📲 手机遥控已发起跨屏接力", Toast.LENGTH_SHORT).show();
                 });
             }
+
+            @Override
+            public void onDolbyModeToggled() {
+                handler.post(MainActivity.this::toggleDolbyMode);
+            }
+
+            @Override
+            public void onP2pModeToggled() {
+                handler.post(MainActivity.this::toggleP2pMode);
+            }
+
+            @Override
+            public void onAiAssistantQuery(String prompt) {
+                handler.post(() -> showAiAssistantDialog(prompt));
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2464,6 +2543,18 @@ public class MainActivity extends AppCompatActivity {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     dialogCloudMesh.setVisibility(View.GONE);
+                }
+                return true;
+            }
+            return super.dispatchKeyEvent(event);
+        }
+
+        // 0. AI Assistant Overlay Remote Navigation
+        if (aiAssistantOverlay != null && aiAssistantOverlay.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    aiAssistantOverlay.setVisibility(View.GONE);
                 }
                 return true;
             }
@@ -2933,6 +3024,7 @@ public class MainActivity extends AppCompatActivity {
         if (dialogAiRecommendations != null) dialogAiRecommendations.setVisibility(View.GONE);
         if (dialogReminders != null) dialogReminders.setVisibility(View.GONE);
         if (dialogCloudMesh != null) dialogCloudMesh.setVisibility(View.GONE);
+        if (aiAssistantOverlay != null) aiAssistantOverlay.setVisibility(View.GONE);
         if (bottomOsd != null) bottomOsd.setVisibility(View.GONE);
     }
 
@@ -3025,6 +3117,7 @@ public class MainActivity extends AppCompatActivity {
         tm.applyThemeToCard(dialogAiRecommendations);
         tm.applyThemeToCard(dialogReminders);
         tm.applyThemeToCard(dialogCloudMesh);
+        tm.applyThemeToCard(aiAssistantOverlay);
         tm.applyThemeToCard(qosRadarOverlay);
         tm.applyThemeToCard(castHudBanner);
         tm.applyThemeToCard(playbackErrorOverlay);
@@ -3128,6 +3221,60 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }).start();
+    }
+
+    private void toggleDolbyMode() {
+        String name = BlurayDolbyManager.getInstance(this).toggleNextMode();
+        updateDolbyButtonText();
+        Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateDolbyButtonText() {
+        if (btnToggleDolbyMode != null) {
+            btnToggleDolbyMode.setText("🎬 蓝光原盘与杜比视界: " + BlurayDolbyManager.getInstance(this).getModeName() + " - 点击切换");
+        }
+    }
+
+    private void toggleP2pMode() {
+        String name = P2pEdgeAccelerationManager.getInstance(this).toggleNextMode();
+        updateP2pButtonText();
+        Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateP2pButtonText() {
+        if (btnToggleP2pMode != null) {
+            btnToggleP2pMode.setText("⚡ P2P 分布式边缘加速: " + P2pEdgeAccelerationManager.getInstance(this).getModeName() + " - 点击切换");
+        }
+    }
+
+    private void showAiAssistantDialog(String prompt) {
+        if (aiAssistantOverlay == null) return;
+        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+        if (aiAssistantPromptText != null) {
+            aiAssistantPromptText.setText("问：" + (prompt != null ? prompt : "有什么好看的电影？"));
+        }
+        if (aiAssistantAnswerText != null) {
+            aiAssistantAnswerText.setText("🤖 正在深度检索全网智库与本地影视库...");
+        }
+        if (btnAiAssistantAction != null) {
+            btnAiAssistantAction.setVisibility(View.GONE);
+        }
+        aiAssistantOverlay.setVisibility(View.VISIBLE);
+        LocalAiAssistantManager.getInstance(this).ask(prompt, allChannels, response -> {
+            latestAiResponse = response;
+            if (aiAssistantAnswerText != null) {
+                aiAssistantAnswerText.setText(response.answer);
+            }
+            if (btnAiAssistantAction != null) {
+                if (!"NONE".equals(response.action)) {
+                    btnAiAssistantAction.setText("▶️ 立即播放匹配内容");
+                    btnAiAssistantAction.setVisibility(View.VISIBLE);
+                    btnAiAssistantAction.requestFocus();
+                } else {
+                    btnAiAssistantAction.setVisibility(View.GONE);
+                }
+            }
+        });
     }
 
     @Override

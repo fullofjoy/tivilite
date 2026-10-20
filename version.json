@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "version_code": 16,
-  "release_notes": "1. 📲 手机无线投屏与 DLNA DMR 接收端 (Cast Receiver，内置 SSDP 组播发现与 UPnP AVTransport，支持 B站/腾讯/爱奇艺/相册一键投屏大屏硬件硬解)\n2. 📊 极客网络与播放画质雷达 (QoS Radar HUD，8 项实时指标：实时网速、4K/HDR 规格、HEVC/AV1 核心、全景声解码、缓冲水位、丢帧率与 RTT 延迟)\n3. 🔌 极客插件开放体系与动态源解密 (Plugin Engine，支持 B站直播解密、斗鱼/虎牙伪装、Referer 防盗链穿透与 CDN 传输加速)\n4. 🛡️ 多源智能无感自动容灾 (Adaptive Failover，实时监听信号流状态，线路卡顿或异常毫秒级秒切备用线路)\n5. 📱 手机 Web 虚拟遥控与配源中心全维升级 (新增极客雷达直达、投屏状态看板、插件规则管理与一键退出投屏)",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.6.0/TiviLite-v1.6.0.apk"
+  "version": "1.9.0",
+  "version_code": 19,
+  "release_notes": "1. 🎬 蓝光原盘 (BDMV/ISO) 与杜比视界 Profile 7/8 色彩映射引擎 (BlurayDolbyManager，针对发烧级原盘自动寻址最大码率流文件直出，智能杜比视界 Tone-Mapping 避免发灰偏色)\n2. 🤖 端侧本地大模型智能全场景影音助手 (LocalAiAssistantManager，支持自然语言多跳语义查询、年代与演员智能推荐，一键精准直达)\n3. ⚡ P2P 分布式边缘流媒体加速网络 (P2pEdgeAccelerationManager，局域网分块协同预取与命中缓存，大幅降低公网带宽并消除卡顿)\n4. 📱 手机 Web 虚拟遥控与配源中心升级 (新增蓝光杜比切换、P2P 边缘加速监控与 AI 智能语音对话交互)\n5. 🛡️ 官方持久证书签名 (SHA256: 5B:A6:... 全版本平滑无缝热更新，极致精简纯净开源)",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.9.0/TiviLite-v1.9.0.apk"
 }
