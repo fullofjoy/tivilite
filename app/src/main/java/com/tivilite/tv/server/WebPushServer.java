@@ -2,9 +2,12 @@ package com.tivilite.tv.server;
 
 import android.content.Context;
 import com.tivilite.tv.ai.AiRecommendationManager;
+import com.tivilite.tv.cast.DlnaDmrManager;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.epg.ReminderManager;
 import com.tivilite.tv.player.LanMulticastManager;
+import com.tivilite.tv.player.QosRadarManager;
+import com.tivilite.tv.plugin.PluginManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
@@ -59,6 +62,11 @@ public class WebPushServer {
         void onPictureModeToggled();
         void onAudioModeChanged(int mode);
         void onPictureModeChanged(int mode);
+
+        // Phase 8
+        void onQosRadarToggled();
+        void onAutoFailoverToggled();
+        void onCastStopRequested();
     }
 
     public interface StatusProvider {
@@ -199,10 +207,46 @@ public class WebPushServer {
                         serveJsonResponse(out, dav.toString());
                     } else if (firstLine.contains("/api/recommendations")) {
                         serveJsonResponse(out, AiRecommendationManager.getRecommendationsJson().toString());
+                    } else if (firstLine.contains("/dlna/description.xml") || firstLine.contains("/dlna/device.xml")) {
+                        serveXmlResponse(out, DlnaDmrManager.getInstance(context).getDeviceDescriptionXml(""));
+                        return;
+                    } else if (firstLine.contains("/dlna/avtransport.xml")) {
+                        serveXmlResponse(out, DlnaDmrManager.getInstance(context).getAvTransportScpdXml());
+                        return;
+                    } else if (firstLine.contains("/dlna/renderingcontrol.xml")) {
+                        serveXmlResponse(out, DlnaDmrManager.getInstance(context).getRenderingControlScpdXml());
+                        return;
+                    } else if (firstLine.contains("/dlna/connectionmanager.xml")) {
+                        serveXmlResponse(out, DlnaDmrManager.getInstance(context).getConnectionManagerScpdXml());
+                        return;
+                    } else if (firstLine.contains("/api/qos") && context != null) {
+                        serveJsonResponse(out, QosRadarManager.getInstance(context).getLatestData().toJson().toString());
+                    } else if (firstLine.contains("/api/plugins") && context != null) {
+                        serveJsonResponse(out, PluginManager.getInstance(context).getPluginsJson().toString());
+                    } else if (firstLine.contains("/api/cast/status") && context != null) {
+                        DlnaDmrManager dmr = DlnaDmrManager.getInstance(context);
+                        JSONObject c = new JSONObject();
+                        c.put("isCasting", dmr.isCasting());
+                        c.put("isPaused", dmr.isPaused());
+                        c.put("title", dmr.getCurrentMediaTitle());
+                        c.put("uri", dmr.getCurrentMediaUri());
+                        serveJsonResponse(out, c.toString());
                     } else {
                         serveHtmlPage(out);
                     }
                 } else if (firstLine.startsWith("POST")) {
+                    if (firstLine.contains("/dlna/control/")) {
+                        String soapAction = "";
+                        for (String h : headerLines) {
+                            if (h.toLowerCase().startsWith("soapaction:")) {
+                                soapAction = h.substring(11).trim();
+                                break;
+                            }
+                        }
+                        String soapResp = DlnaDmrManager.getInstance(context).handleSoapRequest(firstLine, soapAction, body);
+                        serveXmlResponse(out, soapResp);
+                        return;
+                    }
                     String customResponse = handlePostData(firstLine, body);
                     if (customResponse != null && !customResponse.isEmpty()) {
                         serveJsonResponse(out, customResponse);
@@ -335,6 +379,19 @@ public class WebPushServer {
                             listener.onPipAudioToggled();
                             return null;
                         }
+                        if ("qos_radar".equals(key)) {
+                            listener.onQosRadarToggled();
+                            return null;
+                        }
+                        if ("auto_failover".equals(key)) {
+                            listener.onAutoFailoverToggled();
+                            return null;
+                        }
+                        if ("cast_stop".equals(key)) {
+                            DlnaDmrManager.getInstance(context).stopCast();
+                            listener.onCastStopRequested();
+                            return null;
+                        }
                         listener.onRemoteKeyReceived(key, val);
                         return null;
                     }
@@ -440,6 +497,45 @@ public class WebPushServer {
                     int mode = obj.optInt("set_picture_mode", 0);
                     listener.onPictureModeChanged(mode);
                     return null;
+                }
+
+                // Phase 8: QoS Radar, Auto Failover & Dynamic Plugins
+                if (obj.has("toggle_qos_radar")) {
+                    listener.onQosRadarToggled();
+                    return null;
+                }
+                if (obj.has("toggle_auto_failover")) {
+                    listener.onAutoFailoverToggled();
+                    return null;
+                }
+                if (requestLine.contains("/api/cast/stop") || obj.has("stop_cast")) {
+                    DlnaDmrManager.getInstance(context).stopCast();
+                    listener.onCastStopRequested();
+                    return "{\"success\":true,\"message\":\"已退出手机无线投屏，返回直播频道\"}";
+                }
+                if (requestLine.contains("/api/plugins/toggle") || obj.has("plugin_toggle_id")) {
+                    String id = obj.optString("plugin_toggle_id", obj.optString("id", ""));
+                    boolean en = obj.optBoolean("enabled", true);
+                    if (context != null && !id.isEmpty()) {
+                        boolean ok = PluginManager.getInstance(context).togglePlugin(id, en);
+                        return "{\"success\":" + ok + ",\"message\":\"插件状态已切换\"}";
+                    }
+                }
+                if (requestLine.contains("/api/plugins/delete") || obj.has("plugin_delete_id")) {
+                    String id = obj.optString("plugin_delete_id", obj.optString("id", ""));
+                    if (context != null && !id.isEmpty()) {
+                        boolean ok = PluginManager.getInstance(context).deletePlugin(id);
+                        return "{\"success\":" + ok + ",\"message\":\"插件已移除\"}";
+                    }
+                }
+                if (requestLine.contains("/api/plugins/add") || obj.has("add_plugin")) {
+                    if (context != null) {
+                        PluginManager.PluginRule rule = PluginManager.PluginRule.fromJson(obj);
+                        if (rule != null) {
+                            boolean ok = PluginManager.getInstance(context).addOrUpdatePlugin(rule);
+                            return "{\"success\":" + ok + ",\"message\":\"插件已成功导入/更新\"}";
+                        }
+                    }
                 }
 
                 // Phase 7: EPG Program Reminders
@@ -755,6 +851,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({best_source:true})'><span>⚡</span><span>智能测速</span></button>")
           .append("</div>")
 
+          // Phase 8: QoS Radar, Failover & DLNA Cast
+          .append("<div class='keys-grid'>")
+          .append("<button class='key-btn' onclick='postData({toggle_qos_radar:true})'><span>📊</span><span id='rmQosBtn'>极客雷达</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_auto_failover:true})'><span>🛡️</span><span id='rmFailoverBtn'>智能容灾</span></button>")
+          .append("<button class='key-btn' style='background:rgba(239,68,68,0.15);color:#EF4444;' onclick='postData({stop_cast:true})'><span>📲</span><span>退出投屏</span></button>")
+          .append("<button class='key-btn' style='background:rgba(61,123,253,0.15);color:var(--blue);' onclick='showTab(\"settings\")'><span>🔌</span><span>插件中心</span></button>")
+          .append("</div>")
+
           // Voice Command Input
           .append("<div style='margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;'>")
           .append("<div style='display:flex;justify-content:space-between;align-items:center;'>")
@@ -954,10 +1058,16 @@ public class WebPushServer {
           .append("</div>")
 
           .append("<div class='card'>")
+          .append("<div class='card-title'><span>🔌 极客插件扩展中心 (动态解密/穿透)</span><span class='badge'>v1.6.0</span></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:10px;'>已加载动态源解析脚本、B站/斗鱼防盗链 Referer 穿透与 CDN 加速规则：</p>")
+          .append("<div id='pluginListContainer'>加载插件列表中...</div>")
+          .append("</div>")
+
+          .append("<div class='card'>")
           .append("<div class='card-title'><span>⚙️ 偏好设置与系统更新</span></div>")
           .append("<button class='btn-primary' style='background:#202534;' onclick='postData({toggle_auto_boot:true})'>🚀 切换开机自动进入直播</button>")
           .append("<button class='btn-primary' style='background:#202534;margin-top:8px;' onclick='postData({check_update:true})'>🔍 电视端立即检查新版本 OTA</button>")
-          .append("<p style='color:var(--muted);font-size:12px;margin-top:12px;'>TiviLite v1.1.0 · 纯净合规 · 多源聚合 · 极客互联</p>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-top:12px;'>TiviLite v1.6.0 · 纯净合规 · 无线投屏 · 极客雷达 · 插件扩展</p>")
           .append("</div></div>");
 
         // 3. Client JavaScript
@@ -974,7 +1084,7 @@ public class WebPushServer {
           .append("function showTab(name) {")
           .append("  var tabs = document.querySelectorAll('.nav-tab');")
           .append("  var panels = document.querySelectorAll('.tab-panel');")
-          .append("  var names = ['remote', 'ai', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
+          .append("  var names = ['remote', 'ai', 'reminders', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
           .append("  tabs.forEach(function(t, i) {")
           .append("    t.className = (names[i] === name) ? 'nav-tab active' : 'nav-tab';")
           .append("  });")
@@ -982,10 +1092,12 @@ public class WebPushServer {
           .append("    p.className = (p.id === 'tab-' + name) ? 'tab-panel active' : 'tab-panel';")
           .append("  });")
           .append("  if (name === 'ai') fetchAiRecommendations();")
+          .append("  if (name === 'reminders') fetchReminders();")
           .append("  if (name === 'channels' && allChannelsList.length === 0) fetchChannels();")
           .append("  if (name === 'status') fetchStatus();")
           .append("  if (name === 'recordings') fetchRecordings();")
           .append("  if (name === 'webdav') fetchDavStatus();")
+          .append("  if (name === 'settings') fetchPlugins();")
           .append("}")
           .append("function sendKey(key) {")
           .append("  if (navigator.vibrate) navigator.vibrate(20);")
@@ -1257,6 +1369,24 @@ public class WebPushServer {
           .append("    navigator.clipboard.writeText(url); showNotice('局域网中继流已复制！可在卧室电视/手机播放器播放', true);")
           .append("  } else { prompt('局域网中继直链 (复制到其他设备播放)：', url); }")
           .append("}")
+          .append("function fetchPlugins() {")
+          .append("  fetch('/api/plugins').then(function(r){return r.json();}).then(function(list){")
+          .append("    var box = document.getElementById('pluginListContainer');")
+          .append("    if(!list || list.length === 0) { box.innerHTML = '<p style=\"color:var(--muted);font-size:12px;\">暂无加载插件</p>'; return; }")
+          .append("    var html = '';")
+          .append("    list.forEach(function(p){")
+          .append("      html += '<div class=\"sub-item\"><div><div style=\"font-weight:bold;color:#FFF;\">' + p.name + '</div>'")
+          .append("        + '<div style=\"color:var(--muted);font-size:11px;\">' + p.description + ' (' + p.author + ')</div></div>'")
+          .append("        + '<button class=\"sub-btn ' + (p.enabled ? 'btn-toggle' : 'btn-del') + '\" onclick=\"togglePlugin(\\'' + p.id + '\\',' + (!p.enabled) + ')\">'")
+          .append("        + (p.enabled ? '已启用' : '已停用') + '</button></div>';")
+          .append("    });")
+          .append("    box.innerHTML = html;")
+          .append("  }).catch(function(){});")
+          .append("}")
+          .append("function togglePlugin(id, en) {")
+          .append("  postData({plugin_toggle_id: id, enabled: en});")
+          .append("  setTimeout(fetchPlugins, 300);")
+          .append("}")
           .append("window.onload = function() {")
           .append("  fetchSubs(); fetchStatus();")
           .append("  setInterval(fetchStatus, 3500);")
@@ -1266,6 +1396,18 @@ public class WebPushServer {
         byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
         String header = "HTTP/1.1 200 OK\r\n" +
                 "Content-Type: text/html; charset=UTF-8\r\n" +
+                "Content-Length: " + bytes.length + "\r\n" +
+                "Access-Control-Allow-Origin: *\r\n" +
+                "Connection: close\r\n\r\n";
+        out.write(header.getBytes(StandardCharsets.UTF_8));
+        out.write(bytes);
+        out.flush();
+    }
+
+    private void serveXmlResponse(OutputStream out, String xml) throws Exception {
+        byte[] bytes = xml.getBytes(StandardCharsets.UTF_8);
+        String header = "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: text/xml; charset=UTF-8\r\n" +
                 "Content-Length: " + bytes.length + "\r\n" +
                 "Access-Control-Allow-Origin: *\r\n" +
                 "Connection: close\r\n\r\n";

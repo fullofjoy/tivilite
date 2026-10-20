@@ -718,6 +718,38 @@
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
+                    <!-- Phase 8: QoS Radar Toggle -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleQosRadar"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAutoBoot"
+                        android:nextFocusDown="@+id/btnToggleAutoFailover"
+                        android:text="📊 极客网络与画质雷达: 已关闭 - 点击开启"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 8: Adaptive Failover Toggle -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleAutoFailover"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleQosRadar"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="🛡️ 多源智能自动容灾: 已开启 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
                     <!-- Online OTA Update Button -->
                     <androidx.appcompat.widget.AppCompatButton
                         android:id="@+id/btnCheckUpdate"
@@ -728,7 +760,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleAutoBoot"
+                        android:nextFocusUp="@+id/btnToggleAutoFailover"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
@@ -1447,6 +1479,307 @@
                 android:text="❌ 返回播放"
                 android:textColor="@color/tv_text_secondary"
                 android:textSize="12sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 8: Floating QoS Network Radar Overlay -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/qosRadarOverlay"
+        android:layout_width="380dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:layout_marginEnd="28dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#E60D111A"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📊 极客网络与画质雷达 (QoS Radar)"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="● 实时监测"
+                    android:textColor="#10B981"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Row 1: Speed & Stream Spec -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📶 实时下载流速"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosDownloadSpeed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="12.4 Mbps"
+                        android:textColor="@color/tv_accent"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎬 动态画质规格"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosVideoSpec"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="4K UHD 60FPS · HDR10"
+                        android:textColor="#FFF"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row 2: Codec & Audio -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎛️ 解码核心架构"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosVideoCodec"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="HEVC (MediaCodec 硬解)"
+                        android:textColor="#60A5FA"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔊 空间全景音频"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosAudioSpec"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Dolby Atmos (5.1ch)"
+                        android:textColor="#F59E0B"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row 3: Buffer & Dropped Frames -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏱️ 缓冲防抖水位"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosBufferHealth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="9.8s (极佳充沛)"
+                        android:textColor="#10B981"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📉 渲染丢帧监控"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosDroppedFrames"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 帧 (0.00 fps)"
+                        android:textColor="#10B981"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row 4: RTT Latency & Protocol -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚡ 往返网络时延"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosNetworkRtt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="18 ms (低抖动)"
+                        android:textColor="@color/tv_accent"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🌐 网络传输协议"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/qosIpProtocol"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="IPv6 极速专线"
+                        android:textColor="#A78BFA"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 8: DLNA Cast Floating HUD Banner -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/castHudBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="36dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#E60A1424"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="18dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="20dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📲"
+                android:textSize="22sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/castTitleText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="正在无线投屏: 《手机投屏视频》"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/castSubtitleText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="遥控器 [OK] 暂停/继续 · [◀/▶] 进度快进退 · [返回] 退出投屏"
+                    android:textColor="@color/tv_text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

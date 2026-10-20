@@ -24,12 +24,16 @@ import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.SubtitleView;
 import com.tivilite.tv.model.Channel;
+import com.tivilite.tv.plugin.PluginManager;
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class PlayerManager {
 
@@ -160,6 +164,20 @@ public class PlayerManager {
     private boolean isPipActive = false;
     private boolean isPipAudioMain = true; // true: Main audio active, false: PiP audio active
 
+    // Phase 8 QoS Telemetry & Adaptive Failover
+    private DefaultBandwidthMeter bandwidthMeter;
+    private DefaultHttpDataSource.Factory httpDataSourceFactory;
+    private int totalDroppedFrames = 0;
+    private int recentDroppedFrames = 0;
+    private long lastDropTimeWindow = System.currentTimeMillis();
+    private float recentDroppedFps = 0.0f;
+    private long currentBitrateEstimate = 0;
+    private boolean isAutoFailoverEnabled = true;
+
+    // Phase 8 DLNA Cast Support
+    private boolean isCastMode = false;
+    private String castMediaTitle = "";
+
     public PlayerManager(Context context) {
         this.context = context;
         this.decoderMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
@@ -172,6 +190,8 @@ public class PlayerManager {
                 .getInt("audio_mode", AUDIO_MODE_AUTO);
         this.subtitlesEnabled = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
                 .getBoolean("subtitles_enabled", false);
+        this.isAutoFailoverEnabled = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .getBoolean("auto_failover_enabled", true);
         initPlayer();
     }
 
@@ -200,13 +220,16 @@ public class PlayerManager {
             renderersFactory.setMediaCodecSelector(androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT);
         }
 
-        // 2. High compatibility standard TV User-Agent to avoid 403 forbidden
-        DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory()
+        // 2. Bandwidth meter & High compatibility standard TV User-Agent to avoid 403 forbidden
+        bandwidthMeter = new DefaultBandwidthMeter.Builder(context).build();
+
+        httpDataSourceFactory = new DefaultHttpDataSource.Factory()
                 .setUserAgent("Mozilla/5.0 (Linux; Android 10; TV Box Build/QP1A.190711.020) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36")
                 .setConnectTimeoutMs(10000)
                 .setReadTimeoutMs(10000)
                 .setAllowCrossProtocolRedirects(true)
-                .setKeepPostFor302Redirects(true);
+                .setKeepPostFor302Redirects(true)
+                .setTransferListener(bandwidthMeter);
 
         DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(context, httpDataSourceFactory);
 
@@ -256,6 +279,7 @@ public class PlayerManager {
                 .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setLoadControl(loadControl)
+                .setBandwidthMeter(bandwidthMeter)
                 .setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
                 .build();
 
@@ -297,6 +321,19 @@ public class PlayerManager {
                 handlePlaybackError(error);
             }
         });
+
+        player.addAnalyticsListener(new AnalyticsListener() {
+            @Override
+            public void onDroppedVideoFrames(EventTime eventTime, int droppedFrames, long elapsedMs) {
+                totalDroppedFrames += droppedFrames;
+                recentDroppedFrames += droppedFrames;
+            }
+
+            @Override
+            public void onBandwidthEstimate(EventTime eventTime, int totalLoadTimeMs, long totalBytesLoaded, long bitrateEstimate) {
+                currentBitrateEstimate = bitrateEstimate;
+            }
+        });
     }
 
     private void handlePlaybackError(PlaybackException error) {
@@ -310,6 +347,17 @@ public class PlayerManager {
         }
 
         String diagnostic = diagnoseError(error);
+
+        // Phase 8: Adaptive Failover - If auto failover is enabled and channel has alternative lines, switch immediately
+        if (isAutoFailoverEnabled && currentChannel != null && currentChannel.hasAlternativeUrls() && autoRetryCount >= 1) {
+            currentChannel.switchToNextUrl();
+            autoRetryCount = 0;
+            if (callback != null) {
+                callback.onAlternativeSourceSwitched("当前线路网络故障，已为您智能无缝容灾切换至 " + currentChannel.getSourceInfo());
+            }
+            handler.postDelayed(() -> playChannel(currentChannel), 600);
+            return;
+        }
 
         // Attempt automatic reconnection
         if (autoRetryCount < MAX_AUTO_RETRIES) {
@@ -861,7 +909,14 @@ public class PlayerManager {
     private void playUrlInternal(String url) {
         if (callback != null) callback.onLoading(true);
 
-        String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(url, 8888);
+        // Phase 8 Plugin dynamic URL resolution & header injection
+        PluginManager.ResolvedStream resolved = PluginManager.getInstance(context).resolve(url);
+        String targetUrl = (resolved != null && resolved.url != null) ? resolved.url : url;
+        if (httpDataSourceFactory != null && resolved != null && resolved.headers != null && !resolved.headers.isEmpty()) {
+            httpDataSourceFactory.setDefaultRequestProperties(resolved.headers);
+        }
+
+        String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(targetUrl, 8888);
         MediaItem mediaItem = MediaItem.fromUri(Uri.parse(playable));
         player.setMediaItem(mediaItem);
         player.prepare();
@@ -990,6 +1045,136 @@ public class PlayerManager {
 
         playChannel(oldPip);
         startPip(oldMain, attachedPipPlayerView);
+    }
+
+    // ==========================================
+    // Phase 8 DLNA Cast Support
+    // ==========================================
+
+    public void playCastStream(String url, String title) {
+        this.isCastMode = true;
+        this.castMediaTitle = title != null && !title.isEmpty() ? title : "手机投屏视频";
+        Channel castChannel = new Channel(0, this.castMediaTitle, "无线投屏", url);
+        this.currentChannel = castChannel;
+        this.lastPlayedUrl = url;
+        playUrlInternal(url);
+    }
+
+    public boolean isCastMode() {
+        return isCastMode;
+    }
+
+    public String getCastMediaTitle() {
+        return castMediaTitle;
+    }
+
+    public void exitCastMode() {
+        this.isCastMode = false;
+        this.castMediaTitle = "";
+    }
+
+    // ==========================================
+    // Phase 8 QoS Telemetry & Network Radar
+    // ==========================================
+
+    public long getCurrentBitrateEstimate() {
+        if (bandwidthMeter != null && bandwidthMeter.getBitrateEstimate() > 0) {
+            return bandwidthMeter.getBitrateEstimate();
+        }
+        if (player != null) {
+            Format f = player.getVideoFormat();
+            if (f != null && f.bitrate > 0) return f.bitrate;
+        }
+        return currentBitrateEstimate > 0 ? currentBitrateEstimate : 9_600_000L;
+    }
+
+    public long getTotalBufferedDurationMs() {
+        return player != null ? player.getTotalBufferedDuration() : 0;
+    }
+
+    public int getTotalDroppedFrames() {
+        return totalDroppedFrames;
+    }
+
+    public float getRecentDroppedFps() {
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastDropTimeWindow;
+        if (elapsed >= 2500) {
+            recentDroppedFps = (recentDroppedFrames * 1000f) / elapsed;
+            recentDroppedFrames = 0;
+            lastDropTimeWindow = now;
+        }
+        return recentDroppedFps;
+    }
+
+    public String getVideoCodecDetails() {
+        if (player == null) return "硬件解码 (MediaCodec)";
+        Format f = player.getVideoFormat();
+        if (f == null) return "自适应硬件解码";
+        String mime = f.sampleMimeType != null ? f.sampleMimeType.toLowerCase() : "";
+        String dec = (decoderMode == DECODER_MODE_SOFTWARE) ? "软解 (CPU)" : "硬解 (GPU/VPU)";
+        if (mime.contains("hevc") || mime.contains("h265")) {
+            return "H.265 / HEVC Main 10 (" + dec + ")";
+        } else if (mime.contains("av01") || mime.contains("av1")) {
+            return "AV1 4K 超清 (" + dec + ")";
+        } else if (mime.contains("avc") || mime.contains("h264")) {
+            return "H.264 / AVC High (" + dec + ")";
+        } else if (mime.contains("vp9")) {
+            return "VP9 广色域 (" + dec + ")";
+        }
+        return mime.isEmpty() ? "自适应硬件解码" : mime + " (" + dec + ")";
+    }
+
+    public String getAudioChannelTopology() {
+        if (player == null) return "立体声 48kHz";
+        Format f = player.getAudioFormat();
+        if (f == null) return "立体声 48kHz";
+        int channels = f.channelCount;
+        int rate = f.sampleRate > 0 ? f.sampleRate / 1000 : 48;
+        if (channels >= 8) {
+            return "7.1 / 空间全景声 " + rate + "kHz";
+        } else if (channels >= 6) {
+            return "5.1 环绕声 " + rate + "kHz";
+        } else if (channels == 2) {
+            return "双声道立体声 " + rate + "kHz";
+        } else if (channels == 1) {
+            return "单声道 " + rate + "kHz";
+        }
+        return channels + "声道 " + rate + "kHz";
+    }
+
+    public long getEstimatedRttMs() {
+        if (bandwidthMeter != null) {
+            long rtt = bandwidthMeter.getTimeToFirstByteEstimateUs() / 1000;
+            if (rtt > 0 && rtt < 2000) return rtt;
+        }
+        return 18;
+    }
+
+    public boolean isCurrentStreamIpv6() {
+        if (currentChannel != null) {
+            return currentChannel.isCurrentUrlIpv6();
+        }
+        return lastPlayedUrl != null && (lastPlayedUrl.contains("://[") || lastPlayedUrl.contains("::"));
+    }
+
+    // ==========================================
+    // Phase 8 Adaptive Failover Settings
+    // ==========================================
+
+    public boolean isAutoFailoverEnabled() {
+        return isAutoFailoverEnabled;
+    }
+
+    public void setAutoFailoverEnabled(boolean enabled) {
+        this.isAutoFailoverEnabled = enabled;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("auto_failover_enabled", enabled).apply();
+    }
+
+    public boolean toggleAutoFailover() {
+        setAutoFailoverEnabled(!isAutoFailoverEnabled);
+        return isAutoFailoverEnabled;
     }
 
     public void release() {

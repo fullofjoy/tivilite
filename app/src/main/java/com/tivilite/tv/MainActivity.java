@@ -44,6 +44,9 @@ import com.tivilite.tv.data.SmartChannelMatcher;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.epg.EpgManager;
 import com.tivilite.tv.epg.ReminderManager;
+import com.tivilite.tv.cast.DlnaDmrManager;
+import com.tivilite.tv.player.QosRadarManager;
+import com.tivilite.tv.plugin.PluginManager;
 import com.tivilite.tv.player.LanMulticastManager;
 import com.tivilite.tv.player.PictureQualityManager;
 import com.tivilite.tv.ui.RemindersAdapter;
@@ -166,6 +169,25 @@ public class MainActivity extends AppCompatActivity {
             handler.postDelayed(this, 15000);
         }
     };
+
+    // Phase 8: QoS Radar Overlay & DLNA Cast
+    private CardView qosRadarOverlay;
+    private TextView qosDownloadSpeed;
+    private TextView qosVideoSpec;
+    private TextView qosVideoCodec;
+    private TextView qosAudioSpec;
+    private TextView qosBufferHealth;
+    private TextView qosDroppedFrames;
+    private TextView qosNetworkRtt;
+    private TextView qosIpProtocol;
+    private android.widget.Button btnToggleQosRadar;
+    private android.widget.Button btnToggleAutoFailover;
+
+    private CardView castHudBanner;
+    private TextView castTitleText;
+    private TextView castSubtitleText;
+    private DlnaDmrManager dlnaDmrManager;
+    private Channel channelBeforeCast;
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -315,6 +337,32 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, next ? "🚀 已开启开机自动进入直播" : "已关闭开机自启", Toast.LENGTH_SHORT).show();
             });
         }
+
+        btnToggleQosRadar = findViewById(R.id.btnToggleQosRadar);
+        if (btnToggleQosRadar != null) {
+            updateQosRadarButtonText();
+            btnToggleQosRadar.setOnClickListener(v -> toggleQosRadar());
+        }
+
+        btnToggleAutoFailover = findViewById(R.id.btnToggleAutoFailover);
+        if (btnToggleAutoFailover != null) {
+            updateAutoFailoverButtonText();
+            btnToggleAutoFailover.setOnClickListener(v -> toggleAutoFailover());
+        }
+
+        qosRadarOverlay = findViewById(R.id.qosRadarOverlay);
+        qosDownloadSpeed = findViewById(R.id.qosDownloadSpeed);
+        qosVideoSpec = findViewById(R.id.qosVideoSpec);
+        qosVideoCodec = findViewById(R.id.qosVideoCodec);
+        qosAudioSpec = findViewById(R.id.qosAudioSpec);
+        qosBufferHealth = findViewById(R.id.qosBufferHealth);
+        qosDroppedFrames = findViewById(R.id.qosDroppedFrames);
+        qosNetworkRtt = findViewById(R.id.qosNetworkRtt);
+        qosIpProtocol = findViewById(R.id.qosIpProtocol);
+
+        castHudBanner = findViewById(R.id.castHudBanner);
+        castTitleText = findViewById(R.id.castTitleText);
+        castSubtitleText = findViewById(R.id.castSubtitleText);
 
         btnToggleDecoder = findViewById(R.id.btnToggleDecoder);
         if (btnToggleDecoder != null) {
@@ -819,6 +867,15 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case FAILOVER:
                 if (playerManager != null) playerManager.switchToBestSource();
+                break;
+            case QOS_RADAR:
+                toggleQosRadar();
+                break;
+            case AUTO_FAILOVER:
+                toggleAutoFailover();
+                break;
+            case EXIT_CAST:
+                exitCast();
                 break;
             case UNKNOWN:
             default:
@@ -1368,6 +1425,81 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Phase 8: Hook QoS Radar Telemetry
+        QosRadarManager.getInstance(this).setPlayerManager(playerManager);
+        QosRadarManager.getInstance(this).setUpdateListener(data -> {
+            if (qosRadarOverlay != null && qosRadarOverlay.getVisibility() == View.VISIBLE) {
+                if (qosDownloadSpeed != null) qosDownloadSpeed.setText(data.downloadSpeed);
+                if (qosVideoSpec != null) qosVideoSpec.setText(data.videoSpec);
+                if (qosVideoCodec != null) qosVideoCodec.setText(data.videoCodec);
+                if (qosAudioSpec != null) qosAudioSpec.setText(data.audioSpec);
+                if (qosBufferHealth != null) {
+                    qosBufferHealth.setText(data.bufferHealth);
+                    if (data.bufferStatusLevel == 0) qosBufferHealth.setTextColor(0xFF10B981);
+                    else if (data.bufferStatusLevel == 1) qosBufferHealth.setTextColor(0xFFF59E0B);
+                    else qosBufferHealth.setTextColor(0xFFEF4444);
+                }
+                if (qosDroppedFrames != null) qosDroppedFrames.setText(data.droppedFrames);
+                if (qosNetworkRtt != null) qosNetworkRtt.setText(data.networkRtt);
+                if (qosIpProtocol != null) qosIpProtocol.setText(data.ipProtocol);
+            }
+        });
+        if (QosRadarManager.getInstance(this).isRadarEnabled()) {
+            if (qosRadarOverlay != null) qosRadarOverlay.setVisibility(View.VISIBLE);
+            QosRadarManager.getInstance(this).setRadarEnabled(true);
+        }
+
+        // Phase 8: Initialize DLNA DMR Cast Engine
+        dlnaDmrManager = DlnaDmrManager.getInstance(this);
+        dlnaDmrManager.setHttpPort(8888);
+        dlnaDmrManager.setCastListener(new DlnaDmrManager.CastListener() {
+            @Override
+            public void onCastStarted(String uri, String title, String artist, long positionMs) {
+                if (playerManager == null) return;
+                if (!playerManager.isCastMode()) {
+                    channelBeforeCast = playerManager.getCurrentChannel();
+                }
+                hideAllPanels();
+                playerManager.playCastStream(uri, title);
+                if (castHudBanner != null) castHudBanner.setVisibility(View.VISIBLE);
+                if (castTitleText != null) {
+                    castTitleText.setText("正在无线投屏: 《" + (title != null && !title.isEmpty() ? title : "手机投屏视频") + "》");
+                }
+                if (castSubtitleText != null) {
+                    castSubtitleText.setText("遥控器 [OK] 暂停/继续 · [◀/▶] 进度快进退 · [返回] 退出投屏");
+                }
+                Toast.makeText(MainActivity.this, "📲 收到手机投屏: 《" + title + "》", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onCastStopped() {
+                exitCast();
+            }
+
+            @Override
+            public void onCastPlay() {
+                if (playerManager != null) playerManager.play();
+                if (castSubtitleText != null) castSubtitleText.setText("遥控器 [OK] 暂停/继续 · [◀/▶] 进度快进退 · [返回] 退出投屏");
+            }
+
+            @Override
+            public void onCastPause() {
+                if (playerManager != null) playerManager.pause();
+                if (castSubtitleText != null) castSubtitleText.setText("⏸️ 已暂停 · 按 [OK] 键继续播放 · [返回] 退出投屏");
+            }
+
+            @Override
+            public void onCastSeek(long positionMs) {
+                if (playerManager != null) playerManager.seekTo(positionMs);
+            }
+
+            @Override
+            public void onCastVolume(int volumePercent) {
+                // Adjust volume
+            }
+        });
+        dlnaDmrManager.start();
     }
 
     private void initWebServer() {
@@ -1781,6 +1913,21 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
+
+            @Override
+            public void onQosRadarToggled() {
+                handler.post(MainActivity.this::toggleQosRadar);
+            }
+
+            @Override
+            public void onAutoFailoverToggled() {
+                handler.post(MainActivity.this::toggleAutoFailover);
+            }
+
+            @Override
+            public void onCastStopRequested() {
+                handler.post(MainActivity.this::exitCast);
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2029,6 +2176,45 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // 0. DLNA Cast Mode Remote Control
+        if (playerManager != null && playerManager.isCastMode()) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    exitCast();
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (dlnaDmrManager != null && dlnaDmrManager.isPaused()) {
+                        dlnaDmrManager.updateCastState(true, false);
+                        playerManager.play();
+                        if (castSubtitleText != null) castSubtitleText.setText("遥控器 [OK] 暂停/继续 · [◀/▶] 进度快进退 · [返回] 退出投屏");
+                    } else if (dlnaDmrManager != null) {
+                        dlnaDmrManager.updateCastState(true, true);
+                        playerManager.pause();
+                        if (castSubtitleText != null) castSubtitleText.setText("⏸️ 已暂停 · 按 [OK] 键继续播放 · [返回] 退出投屏");
+                    }
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    playerManager.seekBy(-15000);
+                    Toast.makeText(this, "⏪ 快退 15 秒", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    playerManager.seekBy(15000);
+                    Toast.makeText(this, "⏩ 快进 15 秒", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
+        }
+
         // 0. Reminders Dialog Remote Navigation
         if (dialogReminders != null && dialogReminders.getVisibility() == View.VISIBLE) {
             int keyCode = event.getKeyCode();
@@ -2497,6 +2683,57 @@ public class MainActivity extends AppCompatActivity {
         saveAndApplySubscription("手动导入", "", content, false);
     }
 
+    private void hideAllPanels() {
+        if (leftSidebar != null) hideLeftSidebar();
+        if (rightEpgPanel != null) rightEpgPanel.setVisibility(View.GONE);
+        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+        if (dialogAiRecommendations != null) dialogAiRecommendations.setVisibility(View.GONE);
+        if (dialogReminders != null) dialogReminders.setVisibility(View.GONE);
+        if (bottomOsd != null) bottomOsd.setVisibility(View.GONE);
+    }
+
+    private void toggleQosRadar() {
+        boolean enabled = QosRadarManager.getInstance(this).toggleRadar();
+        if (qosRadarOverlay != null) {
+            qosRadarOverlay.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        }
+        updateQosRadarButtonText();
+        Toast.makeText(this, enabled ? "📊 极客网络雷达: 已开启" : "极客网络雷达: 已关闭", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateQosRadarButtonText() {
+        if (btnToggleQosRadar != null) {
+            boolean en = QosRadarManager.getInstance(this).isRadarEnabled();
+            btnToggleQosRadar.setText("📊 极客网络与画质雷达: " + (en ? "已开启" : "已关闭") + " - 点击切换");
+        }
+    }
+
+    private void toggleAutoFailover() {
+        if (playerManager == null) return;
+        boolean en = playerManager.toggleAutoFailover();
+        updateAutoFailoverButtonText();
+        Toast.makeText(this, en ? "🛡️ 多源智能自动容灾: 已开启 (卡顿自动切线)" : "多源自动容灾: 已关闭", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateAutoFailoverButtonText() {
+        if (btnToggleAutoFailover != null && playerManager != null) {
+            boolean en = playerManager.isAutoFailoverEnabled();
+            btnToggleAutoFailover.setText("🛡️ 多源智能自动容灾: " + (en ? "已开启 (秒切备用源)" : "已关闭") + " - 点击切换");
+        }
+    }
+
+    private void exitCast() {
+        if (dlnaDmrManager != null) dlnaDmrManager.stopCast();
+        if (playerManager != null) playerManager.exitCastMode();
+        if (castHudBanner != null) castHudBanner.setVisibility(View.GONE);
+        if (channelBeforeCast != null) {
+            playSelectedChannel(channelBeforeCast);
+            Toast.makeText(this, "📺 已退出投屏，返回直播: " + channelBeforeCast.getName(), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "已退出无线投屏", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -2513,6 +2750,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (dlnaDmrManager != null) dlnaDmrManager.stop();
         if (playerManager != null) playerManager.release();
         if (webServer != null) webServer.stop();
         handler.removeCallbacksAndMessages(null);

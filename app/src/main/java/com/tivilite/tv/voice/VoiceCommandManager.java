@@ -28,6 +28,9 @@ public class VoiceCommandManager {
         FAILOVER,
         SHOW_REMINDERS,
         SHOW_RECOMMENDATIONS,
+        QOS_RADAR,
+        AUTO_FAILOVER,
+        EXIT_CAST,
         UNKNOWN
     }
 
@@ -111,6 +114,21 @@ public class VoiceCommandManager {
         // 9. 换线路 / 测速
         if (input.contains("卡顿") || input.contains("换线路") || input.contains("换一条") || input.contains("备用源") || input.contains("测速")) {
             return new VoiceResult(Action.FAILOVER, null, 0, "⚡ 已为您优选切换最佳可用线路");
+        }
+
+        // 10. Phase 8 极客网络雷达
+        if (input.contains("网络雷达") || input.contains("极客雷达") || input.contains("网速监控") || input.contains("监控面板") || input.contains("雷达")) {
+            return new VoiceResult(Action.QOS_RADAR, null, 0, "📊 已切换极客网络与画质雷达");
+        }
+
+        // 11. Phase 8 多源智能容灾
+        if (input.contains("自动容灾") || input.contains("智能容灾") || input.contains("自动换源") || input.contains("智能切线")) {
+            return new VoiceResult(Action.AUTO_FAILOVER, null, 0, "🛡️ 已切换多源智能自动容灾模式");
+        }
+
+        // 12. Phase 8 DLNA 投屏退出
+        if (input.contains("退出投屏") || input.contains("停止投屏") || input.contains("关掉投屏") || input.contains("返回电视")) {
+            return new VoiceResult(Action.EXIT_CAST, null, 0, "📲 已退出无线投屏，返回直播频道");
         }
 
         // 10. 数字切台 (如 "1台", "换到第12台")
