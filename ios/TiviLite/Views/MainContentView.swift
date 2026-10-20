@@ -6,14 +6,11 @@ public struct MainContentView: View {
     @StateObject private var meshClient = IosCloudMeshClient.shared
 
     @State private var channels: [ChannelItem] = [
-        ChannelItem(number: 1, name: "CCTV-1 综合", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", isFavorite: true, currentProgram: "新闻联播"),
-        ChannelItem(number: 2, name: "CCTV-2 财经", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "天下财经"),
-        ChannelItem(number: 4, name: "CCTV-4 中文国际", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "中国新闻"),
-        ChannelItem(number: 5, name: "CCTV-5 体育", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", isFavorite: true, currentProgram: "体育新闻"),
-        ChannelItem(number: 6, name: "CCTV-6 电影", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "经典影院"),
-        ChannelItem(number: 8, name: "CCTV-8 电视剧", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "黄金强档"),
-        ChannelItem(number: 13, name: "CCTV-13 新闻", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "共同关注"),
-        ChannelItem(number: 21, name: "湖南卫视 高清", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", currentProgram: "综艺精选")
+        ChannelItem(number: 1, name: "Big Buck Bunny (开源电影)", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", isFavorite: true, currentProgram: "Blender 基金会 3D 动画短片 (CC-BY 3.0)"),
+        ChannelItem(number: 2, name: "Apple 官方音画基准", url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8", isFavorite: true, currentProgram: "Apple Developer BipBop 16:9 多码率"),
+        ChannelItem(number: 3, name: "Apple HEVC硬解基准", url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8", currentProgram: "Apple 官方 H.265/HEVC 高效编码测试"),
+        ChannelItem(number: 4, name: "Sintel 辛特尔 (开源电影)", url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8", currentProgram: "Durian 计划开源奇幻短片 (Akamai CDN)"),
+        ChannelItem(number: 5, name: "CGTN 官方全球英语新闻", url: "https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8", isFavorite: true, currentProgram: "CGTN 24小时全球英语新闻直播 (CCTV官方直连)")
     ]
 
     @State private var selectedChannel: ChannelItem?

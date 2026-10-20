@@ -163,27 +163,21 @@ public class M3UParser {
      */
     public static List<Channel> getDemoChannels() {
         List<Channel> list = new ArrayList<>();
-        Channel c1 = new Channel(1, "CGTN 官方新闻 (CCTV)", "央视频道", "https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8");
-        c1.setLogoUrl("https://live.fanmingming.com/tv/CGTN.png");
+        Channel c1 = new Channel(1, "Big Buck Bunny (开源电影基准)", "开源基准", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
         list.add(c1);
 
-        Channel c2 = new Channel(2, "浙江卫视 (官方蓝光 1080p)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8");
-        c2.setLogoUrl("https://live.fanmingming.com/tv/浙江卫视.png");
+        Channel c2 = new Channel(2, "Apple 官方音画同步基准 (BipBop)", "Apple基准", "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8");
         list.add(c2);
 
-        Channel c3 = new Channel(3, "钱江都市 (官方高清)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel002/1080p.m3u8");
-        c3.setLogoUrl("https://live.fanmingming.com/tv/钱江都市.png");
+        Channel c3 = new Channel(3, "Apple HEVC/H.265 硬解基准", "Apple基准", "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8");
         list.add(c3);
 
-        Channel c4 = new Channel(4, "浙江民生休闲 (官方高清)", "卫视频道", "https://ali-m-l.cztv.com/channels/lantian/channel006/1080p.m3u8");
-        c4.setLogoUrl("https://live.fanmingming.com/tv/浙江民生.png");
+        Channel c4 = new Channel(4, "Sintel 辛特尔 (开源电影 4K)", "开源基准", "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8");
         list.add(c4);
 
-        Channel c5 = new Channel(5, "Big Buck Bunny (HLS全码率)", "开源测试", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+        Channel c5 = new Channel(5, "CGTN 官方全球英语新闻 (公网开放流)", "官方开放", "https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8");
+        c5.setLogoUrl("https://live.fanmingming.com/tv/CGTN.png");
         list.add(c5);
-
-        Channel c6 = new Channel(6, "Apple 官方杜比多音轨测试流", "开源测试", "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8");
-        list.add(c6);
 
         return list;
     }

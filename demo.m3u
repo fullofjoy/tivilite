@@ -1,13 +1,11 @@
-#EXTM3U x-tvg-url="http://epg.51zmt.top:8000/api/diyp/"
-#EXTINF:-1 tvg-id="cgtn" tvg-name="CGTN" tvg-logo="https://live.fanmingming.com/tv/CGTN.png" group-title="央视频道",CGTN 官方英语新闻 (CCTV)
-https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8
-#EXTINF:-1 tvg-id="zjws" tvg-name="浙江卫视" tvg-logo="https://live.fanmingming.com/tv/浙江卫视.png" group-title="卫视频道",浙江卫视 (官方蓝光 1080p)
-https://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
-#EXTINF:-1 tvg-id="qjds" tvg-name="钱江都市" tvg-logo="https://live.fanmingming.com/tv/钱江都市.png" group-title="卫视频道",钱江都市 (官方高清)
-https://ali-m-l.cztv.com/channels/lantian/channel002/1080p.m3u8
-#EXTINF:-1 tvg-id="zjms" tvg-name="浙江民生" tvg-logo="https://live.fanmingming.com/tv/浙江民生.png" group-title="卫视频道",浙江民生休闲 (官方高清)
-https://ali-m-l.cztv.com/channels/lantian/channel006/1080p.m3u8
-#EXTINF:-1 tvg-name="BigBuckBunny" group-title="开源测试",Big Buck Bunny (官方标准 HLS 测试)
+#EXTM3U name="TiviLite 官方合规开源基准测试源" x-tvg-url="http://epg.51zmt.top:8000/api/diyp/"
+#EXTINF:-1 tvg-name="BigBuckBunny" group-title="开源基准 (CC-BY 3.0)",Big Buck Bunny (开源电影基准 CC-BY 3.0)
 https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
-#EXTINF:-1 tvg-name="AppleBipBop" group-title="开源测试",Apple 官方 HLS 杜比音频测试流
+#EXTINF:-1 tvg-name="AppleBipBop" group-title="Apple 开发者测试",Apple 官方音画同步基准 (BipBop 16:9)
 https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8
+#EXTINF:-1 tvg-name="AppleHEVC" group-title="Apple 开发者测试",Apple HEVC/H.265 硬件解码基准
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8
+#EXTINF:-1 tvg-name="Sintel" group-title="开源基准 (CC-BY 3.0)",Sintel 辛特尔 (开源电影 4K 基准)
+https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8
+#EXTINF:-1 tvg-id="cgtn" tvg-name="CGTN" tvg-logo="https://live.fanmingming.com/tv/CGTN.png" group-title="官方开放直播",CGTN 官方全球英语新闻 (公网开放流)
+https://english-livetx.cgtn.com/hls/yypdyyctzb_hd.m3u8
