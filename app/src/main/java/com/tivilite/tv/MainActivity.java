@@ -892,18 +892,21 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // 0. Settings / Web Config Dialog Remote Navigation (Handle BOTH ACTION_DOWN and ACTION_UP)
+        if (webConfigDialog != null && webConfigDialog.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    webConfigDialog.setVisibility(View.GONE);
+                }
+                return true;
+            }
+            // Delegate all D-pad and Click (DOWN and UP) events directly to dialog buttons
+            return super.dispatchKeyEvent(event);
+        }
+
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
-
-            // 0. Settings / Web Config Dialog Remote Navigation
-            if (webConfigDialog != null && webConfigDialog.getVisibility() == View.VISIBLE) {
-                if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
-                    webConfigDialog.setVisibility(View.GONE);
-                    return true;
-                }
-                // Allow remote D-pad UP/DOWN/LEFT/RIGHT/CENTER/ENTER to seamlessly navigate and click buttons in the dialog
-                return super.dispatchKeyEvent(event);
-            }
 
             // 1. Interactive Failover & Error Overlay Navigation
             if (playbackErrorOverlay != null && playbackErrorOverlay.getVisibility() == View.VISIBLE) {
