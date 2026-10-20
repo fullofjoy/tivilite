@@ -3447,7 +3447,7 @@ public class MainActivity extends AppCompatActivity {
                     if (bottomOsd.getVisibility() == View.VISIBLE) {
                         bottomOsd.setVisibility(View.GONE);
                     } else {
-                        showBottomOsd();
+                        showOsd();
                     }
                 }
             }
