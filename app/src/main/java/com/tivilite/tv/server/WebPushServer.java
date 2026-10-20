@@ -2,7 +2,11 @@ package com.tivilite.tv.server;
 
 import android.content.Context;
 import com.tivilite.tv.data.SubscriptionManager;
+import com.tivilite.tv.record.RecordingManager;
+import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -35,6 +39,10 @@ public class WebPushServer {
         void onAudioTrackToggled();
         void onBestSourceRequested();
         void onLanSyncPullRequested(String targetIp);
+        void onSubtitleToggled();
+        void onBufferModeToggled();
+        void onRecordingToggled();
+        void onWebDavSyncRequested(String url, String user, String pass, boolean isUpload, boolean autoSync);
     }
 
     public interface StatusProvider {
@@ -136,7 +144,12 @@ public class WebPushServer {
                 }
 
                 if (firstLine.startsWith("GET")) {
-                    if (firstLine.contains("/api/subscriptions") && context != null) {
+                    if (firstLine.contains("/api/recordings/download") && context != null) {
+                        handleFileDownload(firstLine, out);
+                        return;
+                    } else if (firstLine.contains("/api/recordings") && context != null) {
+                        serveJsonResponse(out, RecordingManager.getRecordingsJson(context).toString());
+                    } else if (firstLine.contains("/api/subscriptions") && context != null) {
                         List<SubscriptionManager.Subscription> subs = SubscriptionManager.getSubscriptions(context);
                         JSONArray arr = new JSONArray();
                         for (SubscriptionManager.Subscription s : subs) arr.put(s.toJson());
@@ -150,12 +163,23 @@ public class WebPushServer {
                     } else if (firstLine.contains("/api/export") && context != null) {
                         JSONObject exportData = SubscriptionManager.exportAllData(context);
                         serveJsonResponse(out, exportData.toString());
+                    } else if (firstLine.contains("/api/sync/webdav/status") && context != null) {
+                        JSONObject dav = new JSONObject();
+                        dav.put("url", WebDavClient.getWebDavUrl(context));
+                        dav.put("user", WebDavClient.getWebDavUser(context));
+                        dav.put("auto_sync", WebDavClient.isWebDavAutoSync(context));
+                        dav.put("last_sync", WebDavClient.getFormattedLastSyncTime(context));
+                        serveJsonResponse(out, dav.toString());
                     } else {
                         serveHtmlPage(out);
                     }
                 } else if (firstLine.startsWith("POST")) {
-                    handlePostData(firstLine, body);
-                    serveJsonResponse(out, "{\"success\":true,\"message\":\"大屏操作已实时响应！\"}");
+                    String customResponse = handlePostData(firstLine, body);
+                    if (customResponse != null && !customResponse.isEmpty()) {
+                        serveJsonResponse(out, customResponse);
+                    } else {
+                        serveJsonResponse(out, "{\"success\":true,\"message\":\"大屏操作已实时响应！\"}");
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -165,8 +189,47 @@ public class WebPushServer {
         }).start();
     }
 
-    private void handlePostData(String requestLine, String body) {
-        if (listener == null || body == null || body.trim().isEmpty()) return;
+    private void handleFileDownload(String requestLine, OutputStream out) {
+        try {
+            int qIdx = requestLine.indexOf("?");
+            if (qIdx < 0) return;
+            String query = requestLine.substring(qIdx + 1).split(" ")[0];
+            String fileName = "";
+            for (String part : query.split("&")) {
+                int eq = part.indexOf("=");
+                if (eq > 0 && "name".equals(part.substring(0, eq))) {
+                    fileName = URLDecoder.decode(part.substring(eq + 1), "UTF-8");
+                    break;
+                }
+            }
+            if (fileName.isEmpty()) return;
+            File targetFile = new File(RecordingManager.getRecordingsDir(context), fileName);
+            if (!targetFile.exists() || !targetFile.isFile()) return;
+
+            long fileLen = targetFile.length();
+            String header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: video/mp2t\r\n" +
+                    "Content-Length: " + fileLen + "\r\n" +
+                    "Content-Disposition: attachment; filename=\"" + fileName + "\"\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n";
+            out.write(header.getBytes(StandardCharsets.UTF_8));
+
+            try (FileInputStream fis = new FileInputStream(targetFile)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = fis.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+            }
+            out.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String handlePostData(String requestLine, String body) {
+        if (listener == null || body == null || body.trim().isEmpty()) return null;
         try {
             if (body.trim().startsWith("{")) {
                 JSONObject obj = new JSONObject(body);
@@ -178,18 +241,30 @@ public class WebPushServer {
                     if (!key.isEmpty()) {
                         if ("aspect".equals(key)) {
                             listener.onAspectRatioToggled();
-                            return;
+                            return null;
                         }
                         if ("audio".equals(key)) {
                             listener.onAudioTrackToggled();
-                            return;
+                            return null;
                         }
                         if ("best_source".equals(key)) {
                             listener.onBestSourceRequested();
-                            return;
+                            return null;
+                        }
+                        if ("subtitle".equals(key)) {
+                            listener.onSubtitleToggled();
+                            return null;
+                        }
+                        if ("buffer".equals(key)) {
+                            listener.onBufferModeToggled();
+                            return null;
+                        }
+                        if ("record".equals(key)) {
+                            listener.onRecordingToggled();
+                            return null;
                         }
                         listener.onRemoteKeyReceived(key, val);
-                        return;
+                        return null;
                     }
                 }
 
@@ -199,7 +274,7 @@ public class WebPushServer {
                     String name = obj.optString("zap_name", obj.optString("name", ""));
                     int num = obj.optInt("zap_number", obj.optInt("number", -1));
                     listener.onRemoteZapReceived(idx, name, num);
-                    return;
+                    return null;
                 }
 
                 // Channel Favorite Toggle
@@ -207,42 +282,90 @@ public class WebPushServer {
                     String name = obj.optString("fav_channel", obj.optString("name", ""));
                     if (!name.isEmpty()) {
                         listener.onChannelFavoriteToggled(name);
-                        return;
+                        return null;
                     }
                 }
 
                 // Auto Boot & Decoder Mode Toggles
                 if (obj.has("toggle_auto_boot")) {
                     listener.onAutoBootToggled();
-                    return;
+                    return null;
                 }
                 if (obj.has("toggle_decoder")) {
                     listener.onDecoderToggled();
-                    return;
+                    return null;
                 }
                 if (obj.has("toggle_aspect")) {
                     listener.onAspectRatioToggled();
-                    return;
+                    return null;
                 }
                 if (obj.has("toggle_audio")) {
                     listener.onAudioTrackToggled();
-                    return;
+                    return null;
                 }
                 if (obj.has("best_source")) {
                     listener.onBestSourceRequested();
-                    return;
+                    return null;
+                }
+                if (obj.has("toggle_subtitle")) {
+                    listener.onSubtitleToggled();
+                    return null;
+                }
+                if (obj.has("toggle_buffer")) {
+                    listener.onBufferModeToggled();
+                    return null;
+                }
+                if (obj.has("toggle_recording")) {
+                    listener.onRecordingToggled();
+                    return null;
+                }
+
+                // DVR Recordings Deletion
+                if (requestLine.contains("/api/recordings/delete") || obj.has("recording_delete_name")) {
+                    String delName = obj.optString("recording_delete_name", obj.optString("name", ""));
+                    if (!delName.isEmpty() && context != null) {
+                        boolean delOk = RecordingManager.deleteRecording(context, delName);
+                        return "{\"success\":" + delOk + ",\"message\":\"已删除录制文件: " + delName + "\"}";
+                    }
+                    return null;
+                }
+
+                // WebDAV Cloud Sync
+                if (requestLine.contains("/api/sync/webdav") || obj.has("webdav_action")) {
+                    String action = obj.optString("webdav_action", obj.optString("action", "test"));
+                    String davUrl = obj.optString("url", WebDavClient.getWebDavUrl(context));
+                    String davUser = obj.optString("user", WebDavClient.getWebDavUser(context));
+                    String davPass = obj.optString("pass", WebDavClient.getWebDavPass(context));
+                    boolean autoSync = obj.optBoolean("auto_sync", WebDavClient.isWebDavAutoSync(context));
+
+                    WebDavClient.saveWebDavConfig(context, davUrl, davUser, davPass, autoSync);
+
+                    if ("test".equalsIgnoreCase(action)) {
+                        WebDavClient.SyncResult res = WebDavClient.testConnection(davUrl, davUser, davPass);
+                        return "{\"success\":" + res.success + ",\"message\":\"" + res.message.replace("\"", "\\\"") + "\"}";
+                    } else if ("upload".equalsIgnoreCase(action)) {
+                        WebDavClient.SyncResult res = WebDavClient.uploadBackup(context, davUrl, davUser, davPass);
+                        return "{\"success\":" + res.success + ",\"message\":\"" + res.message.replace("\"", "\\\"") + "\"}";
+                    } else if ("download".equalsIgnoreCase(action)) {
+                        WebDavClient.SyncResult res = WebDavClient.downloadAndRestore(context, davUrl, davUser, davPass);
+                        if (res.success) {
+                            listener.onSubscriptionToggled("", true);
+                        }
+                        return "{\"success\":" + res.success + ",\"message\":\"" + res.message.replace("\"", "\\\"") + "\"}";
+                    }
+                    return "{\"success\":true,\"message\":\"WebDAV 配置已保存！\"}";
                 }
 
                 // LAN Sync Pull & Import
                 if (requestLine.contains("/api/sync/pull") || obj.has("sync_pull_ip")) {
                     String ip = obj.optString("sync_pull_ip", obj.optString("ip", ""));
                     if (!ip.isEmpty()) listener.onLanSyncPullRequested(ip);
-                    return;
+                    return null;
                 }
                 if (requestLine.contains("/api/sync/import") && context != null) {
                     SubscriptionManager.importAllData(context, obj);
                     listener.onSubscriptionToggled("", true);
-                    return;
+                    return null;
                 }
 
                 // Subscription Management
@@ -250,13 +373,13 @@ public class WebPushServer {
                     String id = obj.optString("sub_toggle_id", obj.optString("id", ""));
                     boolean enabled = obj.optBoolean("enabled", true);
                     if (!id.isEmpty()) listener.onSubscriptionToggled(id, enabled);
-                    return;
+                    return null;
                 }
 
                 if (requestLine.contains("/api/subscription/delete") || obj.has("sub_delete_id")) {
                     String id = obj.optString("sub_delete_id", obj.optString("id", ""));
                     if (!id.isEmpty()) listener.onSubscriptionDeleted(id);
-                    return;
+                    return null;
                 }
 
                 boolean isAppend = !"overwrite".equalsIgnoreCase(obj.optString("mode", "append"));
@@ -281,7 +404,7 @@ public class WebPushServer {
                 if (obj.has("check_update")) {
                     listener.onCheckUpdateRequested();
                 }
-                return;
+                return null;
             }
 
             // Support application/x-www-form-urlencoded
@@ -316,6 +439,7 @@ public class WebPushServer {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     private void serveOptionsResponse(OutputStream out) throws Exception {
@@ -422,11 +546,13 @@ public class WebPushServer {
 
           // Top Tab Switcher
           .append("<div class='nav-tabs'>")
-          .append("<div class='nav-tab active' onclick='showTab(\"remote\")'>📱 遥控器</div>")
-          .append("<div class='nav-tab' onclick='showTab(\"status\")'>📺 正在播放</div>")
-          .append("<div class='nav-tab' onclick='showTab(\"channels\")'>📑 频道点播</div>")
-          .append("<div class='nav-tab' onclick='showTab(\"subs\")'>📁 订阅与源</div>")
-          .append("<div class='nav-tab' onclick='showTab(\"settings\")'>⚙️ 系统设置</div>")
+          .append("<div class='nav-tab active' onclick='showTab(\"remote\")'>📱 遥控</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"status\")'>📺 播放</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"channels\")'>📑 频道</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"recordings\")'>🔴 录制</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"subs\")'>📁 订阅</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"webdav\")'>☁️ 云盘</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"settings\")'>⚙️ 设置</div>")
           .append("</div>");
 
         // Panel 1: Virtual Remote Control
@@ -457,6 +583,13 @@ public class WebPushServer {
           .append("<button class='key-btn key-vol' onclick='sendKey(\"volume_down\")'><span>🔉</span><span>音量 -</span></button>")
           .append("<button class='key-btn key-vol' onclick='sendKey(\"volume_mute\")'><span>🔇</span><span>静音</span></button>")
           .append("<button class='key-btn key-vol' onclick='sendKey(\"volume_up\")'><span>🔊</span><span>音量 +</span></button>")
+          .append("</div>")
+
+          .append("<div class='keys-grid'>")
+          .append("<button class='key-btn' style='background:#B91C1C;color:#FFF;' onclick='postData({toggle_recording:true})'><span>🔴</span><span id='rmRecBtn'>录制</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_subtitle:true})'><span>💬</span><span>字幕</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_buffer:true})'><span>🛡️</span><span>防抖</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_aspect:true})'><span>📐</span><span>比例</span></button>")
           .append("</div>")
 
           // Quick Zap Input
@@ -523,7 +656,19 @@ public class WebPushServer {
           .append("</div>")
           .append("</div></div>");
 
-        // Panel 4: Subscriptions Management
+        // Panel 4: DVR Recordings
+        sb.append("<div id='tab-recordings' class='tab-panel'>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>📹 电视实时节目录制 (DVR)</span><button class='sub-btn btn-del' onclick='fetchRecordings()'>刷新</button></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:10px;'>录制的节目保存在电视中，可一键下载到手机或电脑播放：</p>")
+          .append("<button class='btn-primary' style='background:#B91C1C;' onclick='postData({toggle_recording:true})'>🔴 开始 / 停止录制当前频道节目</button>")
+          .append("</div>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>📁 录制文件列表</span><span class='badge' id='recCountBadge'>0 个文件</span></div>")
+          .append("<div id='recListContainer'><p style='color:var(--muted);font-size:12px;'>正在加载录制文件...</p></div>")
+          .append("</div></div>");
+
+        // Panel 5: Subscriptions Management
         sb.append("<div id='tab-subs' class='tab-panel'>")
           .append("<div class='card'>")
           .append("<div class='card-title'><span>⚡ 官方精选合规源</span><span class='badge'>多线路聚合</span></div>")
@@ -570,7 +715,27 @@ public class WebPushServer {
           .append("<button class='btn-primary' style='background:#3D7BFD;' onclick='submitEpg()'>🌐 保存并更新 EPG 节目单</button>")
           .append("</div></div>");
 
-        // Panel 5: Settings & OTA
+        // Panel 6: WebDAV Cloud Sync
+        sb.append("<div id='tab-webdav' class='tab-panel'>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>☁️ WebDAV 私有云盘同步</span><span class='badge'>多端漫游</span></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:8px;'>支持 Alist、群晖 NAS、坚果云、Nextcloud 等标准 WebDAV 私有服务：</p>")
+          .append("<label>WebDAV 服务器地址：</label>")
+          .append("<input type='text' id='davUrl' placeholder='http://192.168.1.100:5005/dav/ 或 https://...' />")
+          .append("<label>用户名：</label>")
+          .append("<input type='text' id='davUser' placeholder='admin' />")
+          .append("<label>密码 / 访问令牌：</label>")
+          .append("<input type='password' id='davPass' placeholder='••••••••' />")
+          .append("<div style='margin-top:10px;'><label><input type='checkbox' id='davAuto' style='width:auto;margin-right:6px;' /> 开机自动从云端同步最新配置</label></div>")
+          .append("<div style='color:var(--muted);font-size:12px;margin-top:8px;'>最近同步时间：<strong id='davLastSync' style='color:#FFF;'>--</strong></div>")
+          .append("<div style='display:flex;gap:8px;margin-top:14px;'>")
+          .append("<button class='btn-primary' style='background:#3D7BFD;flex:1;' onclick='submitDav(\"test\")'>⚡ 测试连接</button>")
+          .append("<button class='btn-primary' style='background:#10B981;flex:1;' onclick='submitDav(\"upload\")'>☁️ 备份到云盘</button>")
+          .append("<button class='btn-primary' style='background:#F59E0B;flex:1;' onclick='submitDav(\"download\")'>📥 从云端恢复</button>")
+          .append("</div>")
+          .append("</div></div>");
+
+        // Panel 7: Settings & OTA
         sb.append("<div id='tab-settings' class='tab-panel'>")
           .append("<div class='card'>")
           .append("<div class='card-title'><span>👑 Pro 会员一键激活</span></div>")
@@ -600,15 +765,17 @@ public class WebPushServer {
           .append("function showTab(name) {")
           .append("  var tabs = document.querySelectorAll('.nav-tab');")
           .append("  var panels = document.querySelectorAll('.tab-panel');")
+          .append("  var names = ['remote', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
           .append("  tabs.forEach(function(t, i) {")
-          .append("    var match = t.innerText.indexOf(name === 'remote' ? '遥控' : (name === 'status' ? '正在播放' : (name === 'channels' ? '频道点播' : (name === 'subs' ? '订阅' : '设置')))) >= 0;")
-          .append("    t.className = match ? 'nav-tab active' : 'nav-tab';")
+          .append("    t.className = (names[i] === name) ? 'nav-tab active' : 'nav-tab';")
           .append("  });")
           .append("  panels.forEach(function(p) {")
           .append("    p.className = (p.id === 'tab-' + name) ? 'tab-panel active' : 'tab-panel';")
           .append("  });")
           .append("  if (name === 'channels' && allChannelsList.length === 0) fetchChannels();")
           .append("  if (name === 'status') fetchStatus();")
+          .append("  if (name === 'recordings') fetchRecordings();")
+          .append("  if (name === 'webdav') fetchDavStatus();")
           .append("}")
           .append("function sendKey(key) {")
           .append("  if (navigator.vibrate) navigator.vibrate(20);")
@@ -708,7 +875,50 @@ public class WebPushServer {
           .append("      document.getElementById('setDevId').innerText = s.device_id;")
           .append("    }")
           .append("    if(s.pro_status_text) document.getElementById('stProText').innerText = s.pro_status_text;")
+          .append("    var rBtn = document.getElementById('rmRecBtn');")
+          .append("    if(rBtn) {")
+          .append("      rBtn.innerText = s.is_recording ? '录制中 ●' : '录制';")
+          .append("      rBtn.parentElement.style.background = s.is_recording ? '#DC2626' : '#B91C1C';")
+          .append("    }")
           .append("  }).catch(function(){});")
+          .append("}")
+          .append("function fetchRecordings() {")
+          .append("  fetch('/api/recordings').then(function(r){return r.json();}).then(function(list){")
+          .append("    var box = document.getElementById('recListContainer');")
+          .append("    document.getElementById('recCountBadge').innerText = (list ? list.length : 0) + ' 个文件';")
+          .append("    if(!list || list.length === 0) { box.innerHTML = '<p style=\"color:var(--muted);font-size:12px;text-align:center;padding:16px;\">暂无录制文件</p>'; return; }")
+          .append("    var html = '';")
+          .append("    list.forEach(function(item){")
+          .append("      html += '<div class=\"sub-item\"><div><strong>' + item.name + '</strong>'")
+          .append("        + '<div style=\"color:var(--muted);font-size:11px;\">大小: ' + item.size_formatted + ' · 时间: ' + item.date_formatted + '</div></div>'")
+          .append("        + '<div><a href=\"/api/recordings/download?name=' + encodeURIComponent(item.name) + '\" download class=\"sub-btn btn-toggle\" style=\"text-decoration:none;display:inline-block;\">⬇️ 下载</a>'")
+          .append("        + '<button class=\"sub-btn btn-del\" onclick=\"delRec(\\'' + item.name + '\\')\">删除</button></div></div>';")
+          .append("    });")
+          .append("    box.innerHTML = html;")
+          .append("  }).catch(function(){});")
+          .append("}")
+          .append("function delRec(name) {")
+          .append("  if(confirm('确定删除录制文件: ' + name + '？')) {")
+          .append("    postData({recording_delete_name: name});")
+          .append("    setTimeout(fetchRecordings, 400);")
+          .append("  }")
+          .append("}")
+          .append("function fetchDavStatus() {")
+          .append("  fetch('/api/sync/webdav/status').then(function(r){return r.json();}).then(function(d){")
+          .append("    if(d.url) document.getElementById('davUrl').value = d.url;")
+          .append("    if(d.user) document.getElementById('davUser').value = d.user;")
+          .append("    if(d.last_sync) document.getElementById('davLastSync').innerText = d.last_sync;")
+          .append("    document.getElementById('davAuto').checked = !!d.auto_sync;")
+          .append("  }).catch(function(){});")
+          .append("}")
+          .append("function submitDav(act) {")
+          .append("  var u = document.getElementById('davUrl').value.trim();")
+          .append("  var usr = document.getElementById('davUser').value.trim();")
+          .append("  var p = document.getElementById('davPass').value.trim();")
+          .append("  var a = document.getElementById('davAuto').checked;")
+          .append("  showNotice('正在执行 WebDAV ' + act + ' 操作...', true);")
+          .append("  postData({webdav_action: act, url: u, user: usr, pass: p, auto_sync: a});")
+          .append("  setTimeout(fetchDavStatus, 1200);")
           .append("}")
           .append("function fetchChannels() {")
           .append("  fetch('/api/channels').then(function(r){return r.json();}).then(function(data){")

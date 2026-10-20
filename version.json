@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "version_code": 12,
-  "release_notes": "1. 📐 画面比例多模自适应 (自适应 FIT / 全屏拉伸 FILL / 智能裁剪 ZOOM)\n2. 🔊 多音轨与多声道无缝切换 (普通话/粤语/英语/杜比环绕声)\n3. ⚡ 多线路智能并发测速与优选 (实时显示 Ping 延迟毫秒)\n4. 🎬 抽屉边看边选小窗微缩平滑沉浸动效\n5. 📡 局域网同源联动 (客厅与卧室电视一键克隆同步全部订阅与收藏)\n6. 🛡️ 官方统一正式签名，支持免卸载无缝升级",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.2.0/TiviLite-v1.2.0.apk"
+  "version": "1.3.0",
+  "version_code": 13,
+  "release_notes": "1. 📹 电视直播与时移实时节目录制 (Live DVR，录制为标准 .ts 容器，支持网页端直接回放与免流下载到手机/电脑)\n2. 💬 多语言字幕与无障碍 CC 渲染 (自适应内嵌 WebVTT/CEA-608 字幕，3米沙发大屏高对比度描边无障碍排版)\n3. ☁️ WebDAV 私有云盘全量自动同步 (支持 Alist、群晖 NAS、坚果云、Nextcloud，订阅/收藏/设置多端漫游)\n4. 🛡️ 弱网自适应抖动平滑缓冲策略 (秒开/抗抖/超强弱网三档可调，Wi-Fi 波动不卡顿、黑屏自愈)\n5. 📱 手机 Web 虚拟遥控与大屏全功能互联升级 (快捷键直达录制、切换字幕与缓冲模式)",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.3.0/TiviLite-v1.3.0.apk"
 }

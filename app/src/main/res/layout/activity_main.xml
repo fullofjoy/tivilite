@@ -241,6 +241,38 @@
             app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
 
         <TextView
+            android:id="@+id/osdSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/selector_tv_item"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="💬 字幕: 关"
+            android:textColor="@color/tv_text_secondary"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdAudio"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
+            android:id="@+id/osdRecordBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/selector_tv_item"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="● REC 00:00:00"
+            android:textColor="#FF4D4F"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdSubtitle"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
             android:id="@+id/osdProgram"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -377,8 +409,40 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleAspectRatio"
-                        android:nextFocusDown="@+id/btnToggleMiniDrawer"
+                        android:nextFocusDown="@+id/btnToggleSubtitle"
                         android:text="🔊 音轨/声道: 标准立体声 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Subtitle Toggle Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAudioTrack"
+                        android:nextFocusDown="@+id/btnToggleBufferMode"
+                        android:text="💬 字幕/无障碍: 关闭 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Jitter Buffer Mode Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleBufferMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleSubtitle"
+                        android:nextFocusDown="@+id/btnToggleMiniDrawer"
+                        android:text="🛡️ 缓冲策略: 极速秒开模式 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -392,9 +456,57 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleAudioTrack"
-                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:nextFocusUp="@+id/btnToggleBufferMode"
+                        android:nextFocusDown="@+id/btnToggleDecoder"
                         android:text="🎬 抽屉边看边选小窗微缩: 已开启 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Decoder Mode Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleDecoder"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleMiniDrawer"
+                        android:nextFocusDown="@+id/btnToggleRecording"
+                        android:text="🎬 解码器模式: 硬件加速 (推荐流畅) - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- DVR Live Recording Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleRecording"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleDecoder"
+                        android:nextFocusDown="@+id/btnRecordingsList"
+                        android:text="🔴 实时节目录制 (DVR): 未录制 - 点击开始"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Recordings Manager Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnRecordingsList"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleRecording"
+                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:text="📁 已录制节目管理与查看 (共 0 个)"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -408,9 +520,41 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleMiniDrawer"
-                        android:nextFocusDown="@+id/btnToggleDirection"
+                        android:nextFocusUp="@+id/btnRecordingsList"
+                        android:nextFocusDown="@+id/btnWebDavSync"
                         android:text="⚡ 自动测速并优选最佳线路"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- WebDAV Cloud Sync Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnWebDavSync"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnSwitchBestSource"
+                        android:nextFocusDown="@+id/btnLanSync"
+                        android:text="☁️ WebDAV 私有云盘同步 (NAS/Alist/坚果云)"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- LAN TV Sync Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnLanSync"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnWebDavSync"
+                        android:nextFocusDown="@+id/btnToggleDirection"
+                        android:text="📡 局域网多电视同源联动 (克隆配置)"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -424,7 +568,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnSwitchBestSource"
+                        android:nextFocusUp="@+id/btnLanSync"
                         android:nextFocusDown="@+id/btnToggleAutoBoot"
                         android:text="🎮 遥控切台方向: 正常 (▲上一台 / ▼下一台)"
                         android:textColor="@color/tv_text_primary"
@@ -441,40 +585,8 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleDirection"
-                        android:nextFocusDown="@+id/btnToggleDecoder"
-                        android:text="🚀 开机自动直达直播: 已开启 - 点击切换"
-                        android:textColor="@color/tv_text_primary"
-                        android:textSize="12sp" />
-
-                    <!-- Decoder Mode Button -->
-                    <androidx.appcompat.widget.AppCompatButton
-                        android:id="@+id/btnToggleDecoder"
-                        android:layout_width="match_parent"
-                        android:layout_height="38dp"
-                        android:layout_marginTop="6dp"
-                        app:backgroundTint="@null"
-                        android:background="@drawable/selector_tv_button"
-                        android:focusable="true"
-                        android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleAutoBoot"
-                        android:nextFocusDown="@+id/btnLanSync"
-                        android:text="🎬 解码器模式: 硬件加速 (推荐流畅) - 点击切换"
-                        android:textColor="@color/tv_text_primary"
-                        android:textSize="12sp" />
-
-                    <!-- LAN TV Sync Button -->
-                    <androidx.appcompat.widget.AppCompatButton
-                        android:id="@+id/btnLanSync"
-                        android:layout_width="match_parent"
-                        android:layout_height="38dp"
-                        android:layout_marginTop="6dp"
-                        app:backgroundTint="@null"
-                        android:background="@drawable/selector_tv_button"
-                        android:focusable="true"
-                        android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleDecoder"
                         android:nextFocusDown="@+id/btnCheckUpdate"
-                        android:text="📡 局域网多电视同源联动 (克隆配置)"
+                        android:text="🚀 开机自动直达直播: 已开启 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -488,7 +600,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnLanSync"
+                        android:nextFocusUp="@+id/btnToggleAutoBoot"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"

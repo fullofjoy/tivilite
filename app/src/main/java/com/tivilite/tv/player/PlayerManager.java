@@ -1,6 +1,8 @@
 package com.tivilite.tv.player;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,7 +20,9 @@ import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.ui.AspectRatioFrameLayout;
+import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
+import androidx.media3.ui.SubtitleView;
 import com.tivilite.tv.model.Channel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +39,43 @@ public class PlayerManager {
     public static final int ASPECT_RATIO_FIT = 0;   // 自适应 (保持原始比例)
     public static final int ASPECT_RATIO_FILL = 1;  // 全屏拉伸 (填满屏幕)
     public static final int ASPECT_RATIO_ZOOM = 2;  // 智能裁剪 (等比放大去除黑边)
+
+    public static final int BUFFER_MODE_FAST = 0;    // 极速秒开 (秒切缓冲)
+    public static final int BUFFER_MODE_SMOOTH = 1;  // 弱网防抖 (平滑防卡顿)
+    public static final int BUFFER_MODE_EXTREME = 2; // 深度抗抖 (抗高延迟弱网)
+
+    public static class SubtitleTrackInfo {
+        public final int groupIndex;
+        public final int trackIndex;
+        public final String label;
+        public final String language;
+        public final boolean isSelected;
+
+        public SubtitleTrackInfo(int groupIndex, int trackIndex, String label, String language, boolean isSelected) {
+            this.groupIndex = groupIndex;
+            this.trackIndex = trackIndex;
+            this.label = label;
+            this.language = language;
+            this.isSelected = isSelected;
+        }
+
+        public String getDisplayName() {
+            if (label != null && !label.isEmpty()) {
+                return label;
+            } else if (language != null && !language.isEmpty()) {
+                if ("zh".equalsIgnoreCase(language) || "zho".equalsIgnoreCase(language) || "chi".equalsIgnoreCase(language)) {
+                    return "中文/普通话字幕";
+                } else if ("yue".equalsIgnoreCase(language)) {
+                    return "粤语字幕";
+                } else if ("en".equalsIgnoreCase(language) || "eng".equalsIgnoreCase(language)) {
+                    return "英文字幕 (CC)";
+                } else {
+                    return language.toUpperCase() + " 字幕";
+                }
+            }
+            return "字幕轨 " + (trackIndex + 1);
+        }
+    }
 
     public static class AudioTrackInfo {
         public final int groupIndex;
@@ -102,6 +143,7 @@ public class PlayerManager {
     private String lastPlayedUrl = "";
     private int decoderMode = DECODER_MODE_HARDWARE;
     private int aspectRatioMode = ASPECT_RATIO_FIT;
+    private int bufferMode = BUFFER_MODE_FAST;
     private PlayerView attachedPlayerView;
 
     public PlayerManager(Context context) {
@@ -110,6 +152,8 @@ public class PlayerManager {
                 .getInt("decoder_mode", DECODER_MODE_HARDWARE);
         this.aspectRatioMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
                 .getInt("aspect_ratio_mode", ASPECT_RATIO_FIT);
+        this.bufferMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .getInt("buffer_mode", BUFFER_MODE_FAST);
         initPlayer();
     }
 
@@ -151,13 +195,40 @@ public class PlayerManager {
         // 3. Universal MediaSourceFactory: Automatically handles HLS, DASH, SmoothStreaming, and Progressive TS/MP4
         DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(dataSourceFactory);
 
-        // 4. Staged buffer control: 500ms fast start + 15s steady state buffer to absorb Wi-Fi jitter
+        // 4. Staged buffer control: Adapts according to network stability preference
+        int minBufferMs;
+        int maxBufferMs;
+        int bufferForPlaybackMs;
+        int bufferForPlaybackAfterRebufferMs;
+
+        switch (bufferMode) {
+            case BUFFER_MODE_SMOOTH:
+                minBufferMs = 8000;
+                maxBufferMs = 30000;
+                bufferForPlaybackMs = 2500;
+                bufferForPlaybackAfterRebufferMs = 3500;
+                break;
+            case BUFFER_MODE_EXTREME:
+                minBufferMs = 15000;
+                maxBufferMs = 45000;
+                bufferForPlaybackMs = 4000;
+                bufferForPlaybackAfterRebufferMs = 5000;
+                break;
+            case BUFFER_MODE_FAST:
+            default:
+                minBufferMs = 2500;
+                maxBufferMs = 15000;
+                bufferForPlaybackMs = 400;
+                bufferForPlaybackAfterRebufferMs = 1200;
+                break;
+        }
+
         DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                        2500,   // minBufferMs
-                        15000,  // maxBufferMs
-                        500,    // bufferForPlaybackMs (instant start)
-                        1500    // bufferForPlaybackAfterRebufferMs
+                        minBufferMs,
+                        maxBufferMs,
+                        bufferForPlaybackMs,
+                        bufferForPlaybackAfterRebufferMs
                 )
                 .setBackBuffer(5000, false)
                 .setPrioritizeTimeOverSizeThresholds(true)
@@ -262,6 +333,22 @@ public class PlayerManager {
         this.attachedPlayerView = playerView;
         playerView.setPlayer(player);
         applyAspectRatio();
+
+        // Configure high-contrast SubtitleView for TV distance
+        SubtitleView subView = playerView.getSubtitleView();
+        if (subView != null) {
+            subView.setApplyEmbeddedFontSizes(false);
+            subView.setFractionalTextSize(0.055f); // 5.5% of TV screen height
+            CaptionStyleCompat style = new CaptionStyleCompat(
+                    Color.WHITE,
+                    Color.parseColor("#90000000"), // Translucent dark backing box
+                    Color.TRANSPARENT,
+                    CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                    Color.BLACK,
+                    Typeface.DEFAULT_BOLD
+            );
+            subView.setStyle(style);
+        }
     }
 
     public int getAspectRatioMode() {
@@ -370,6 +457,155 @@ public class PlayerManager {
             if (t.isSelected) return t.getDisplayName();
         }
         return tracks.isEmpty() ? "标准立体声" : tracks.get(0).getDisplayName();
+    }
+
+    public List<SubtitleTrackInfo> getSubtitleTracks() {
+        List<SubtitleTrackInfo> list = new ArrayList<>();
+        if (player == null) return list;
+        Tracks tracks = player.getCurrentTracks();
+        int groupIdx = 0;
+        for (Tracks.Group group : tracks.getGroups()) {
+            if (group.getType() == C.TRACK_TYPE_TEXT) {
+                for (int i = 0; i < group.length; i++) {
+                    Format format = group.getTrackFormat(i);
+                    boolean selected = group.isTrackSelected(i);
+                    list.add(new SubtitleTrackInfo(groupIdx, i, format.label, format.language, selected));
+                }
+            }
+            groupIdx++;
+        }
+        return list;
+    }
+
+    public boolean isSubtitlesEnabled() {
+        if (player == null) return false;
+        return !player.getTrackSelectionParameters().isTrackTypeDisabled(C.TRACK_TYPE_TEXT);
+    }
+
+    public void setSubtitlesEnabled(boolean enabled) {
+        if (player == null) return;
+        player.setTrackSelectionParameters(
+                player.getTrackSelectionParameters().buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
+                        .build()
+        );
+    }
+
+    public void selectSubtitleTrack(int targetGroupIndex, int targetTrackIndex) {
+        if (player == null) return;
+        Tracks tracks = player.getCurrentTracks();
+        int currentGroupIdx = 0;
+        for (Tracks.Group group : tracks.getGroups()) {
+            if (currentGroupIdx == targetGroupIndex && group.getType() == C.TRACK_TYPE_TEXT) {
+                TrackSelectionOverride override =
+                        new TrackSelectionOverride(group.getMediaTrackGroup(), targetTrackIndex);
+                player.setTrackSelectionParameters(
+                        player.getTrackSelectionParameters().buildUpon()
+                                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                                .setOverrideForType(override)
+                                .build()
+                );
+                return;
+            }
+            currentGroupIdx++;
+        }
+    }
+
+    public String toggleNextSubtitleTrack() {
+        List<SubtitleTrackInfo> tracks = getSubtitleTracks();
+        if (tracks.isEmpty()) {
+            return "当前源无内嵌字幕";
+        }
+        if (!isSubtitlesEnabled()) {
+            setSubtitlesEnabled(true);
+            selectSubtitleTrack(tracks.get(0).groupIndex, tracks.get(0).trackIndex);
+            return tracks.get(0).getDisplayName();
+        }
+        int currentIdx = -1;
+        for (int i = 0; i < tracks.size(); i++) {
+            if (tracks.get(i).isSelected) {
+                currentIdx = i;
+                break;
+            }
+        }
+        if (currentIdx >= 0 && currentIdx < tracks.size() - 1) {
+            SubtitleTrackInfo next = tracks.get(currentIdx + 1);
+            selectSubtitleTrack(next.groupIndex, next.trackIndex);
+            return next.getDisplayName();
+        } else {
+            setSubtitlesEnabled(false);
+            return "字幕已关闭";
+        }
+    }
+
+    public String getCurrentSubtitleDesc() {
+        if (!isSubtitlesEnabled()) return "字幕关闭";
+        List<SubtitleTrackInfo> tracks = getSubtitleTracks();
+        for (SubtitleTrackInfo t : tracks) {
+            if (t.isSelected) return t.getDisplayName();
+        }
+        return tracks.isEmpty() ? "无字幕轨" : "字幕已开";
+    }
+
+    public int getBufferMode() {
+        return bufferMode;
+    }
+
+    public void setBufferMode(int mode) {
+        if (this.bufferMode == mode) return;
+        this.bufferMode = mode;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putInt("buffer_mode", mode)
+                .apply();
+
+        PlayerView attached = this.attachedPlayerView;
+        Channel ch = this.currentChannel;
+        boolean catchup = this.isCatchupMode;
+        String lastUrl = this.lastPlayedUrl;
+        long currentPos = player != null ? player.getCurrentPosition() : 0;
+
+        if (player != null) {
+            player.release();
+            player = null;
+        }
+
+        initPlayer();
+        if (attached != null) {
+            attachPlayerView(attached);
+        }
+        if (ch != null) {
+            this.currentChannel = ch;
+            this.isCatchupMode = catchup;
+            if (!lastUrl.isEmpty()) {
+                playUrl(lastUrl);
+                if (currentPos > 0 && player != null) player.seekTo(currentPos);
+            } else {
+                playChannel(ch);
+            }
+        }
+    }
+
+    public String toggleNextBufferMode() {
+        int next = (bufferMode + 1) % 3;
+        setBufferMode(next);
+        return getBufferModeText();
+    }
+
+    public String getBufferModeText() {
+        switch (bufferMode) {
+            case BUFFER_MODE_SMOOTH:
+                return "弱网防抖模式 (8s~30s 缓冲)";
+            case BUFFER_MODE_EXTREME:
+                return "深度抗抖模式 (15s~45s 缓冲)";
+            case BUFFER_MODE_FAST:
+            default:
+                return "极速秒开模式 (2.5s~15s 缓冲)";
+        }
+    }
+
+    public String getLastPlayedUrl() {
+        return lastPlayedUrl;
     }
 
     public int getDecoderMode() {

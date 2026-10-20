@@ -41,6 +41,8 @@ import java.util.Map;
 import java.util.UUID;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.epg.EpgManager;
+import com.tivilite.tv.record.RecordingManager;
+import com.tivilite.tv.sync.WebDavClient;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -61,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView osdBadge;
     private TextView osdSource;
     private ImageView osdLogo;
+    private TextView osdSubtitle;
+    private TextView osdRecordBadge;
     private TextView webServerUrlText;
     private ImageView qrCodeImageView;
 
@@ -82,8 +86,13 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnToggleDecoder;
     private android.widget.Button btnToggleAspectRatio;
     private android.widget.Button btnToggleAudioTrack;
+    private android.widget.Button btnToggleSubtitle;
+    private android.widget.Button btnToggleBufferMode;
     private android.widget.Button btnToggleMiniDrawer;
+    private android.widget.Button btnToggleRecording;
+    private android.widget.Button btnRecordingsList;
     private android.widget.Button btnSwitchBestSource;
+    private android.widget.Button btnWebDavSync;
     private android.widget.Button btnLanSync;
     private TextView osdAspect;
     private TextView osdAudio;
@@ -146,6 +155,27 @@ public class MainActivity extends AppCompatActivity {
 
         // Silent background update check after app launch
         handler.postDelayed(() -> com.tivilite.tv.update.UpdateManager.checkUpdate(this, false), 4000);
+
+        // Auto WebDAV Cloud Sync on startup if enabled
+        if (WebDavClient.isWebDavAutoSync(this)) {
+            String davUrl = WebDavClient.getWebDavUrl(this);
+            if (!davUrl.isEmpty()) {
+                new Thread(() -> {
+                    WebDavClient.SyncResult res = WebDavClient.downloadAndRestore(
+                            MainActivity.this,
+                            davUrl,
+                            WebDavClient.getWebDavUser(MainActivity.this),
+                            WebDavClient.getWebDavPass(MainActivity.this)
+                    );
+                    if (res.success) {
+                        handler.post(() -> {
+                            applyAggregatedSubscriptions();
+                            updateSubscriptionSummary();
+                        });
+                    }
+                }).start();
+            }
+        }
     }
 
     private void initViews() {
@@ -239,6 +269,8 @@ public class MainActivity extends AppCompatActivity {
 
         osdAspect = findViewById(R.id.osdAspect);
         osdAudio = findViewById(R.id.osdAudio);
+        osdSubtitle = findViewById(R.id.osdSubtitle);
+        osdRecordBadge = findViewById(R.id.osdRecordBadge);
 
         miniDrawerPreview = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("mini_drawer_preview", true);
 
@@ -268,6 +300,46 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "当前视频流仅有 1 组默认音轨", Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        btnToggleSubtitle = findViewById(R.id.btnToggleSubtitle);
+        if (btnToggleSubtitle != null) {
+            updateSubtitleButtonText();
+            btnToggleSubtitle.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                String sub = playerManager.toggleNextSubtitleTrack();
+                updateSubtitleButtonText();
+                if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                Toast.makeText(this, "💬 " + sub, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnToggleBufferMode = findViewById(R.id.btnToggleBufferMode);
+        if (btnToggleBufferMode != null) {
+            updateBufferModeButtonText();
+            btnToggleBufferMode.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                String buf = playerManager.toggleNextBufferMode();
+                updateBufferModeButtonText();
+                Toast.makeText(this, "🛡️ " + buf, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnToggleRecording = findViewById(R.id.btnToggleRecording);
+        if (btnToggleRecording != null) {
+            updateRecordingButtonText();
+            btnToggleRecording.setOnClickListener(v -> toggleLiveRecording());
+        }
+
+        btnRecordingsList = findViewById(R.id.btnRecordingsList);
+        if (btnRecordingsList != null) {
+            updateRecordingsListButtonText();
+            btnRecordingsList.setOnClickListener(v -> showRecordingsDialog());
+        }
+
+        btnWebDavSync = findViewById(R.id.btnWebDavSync);
+        if (btnWebDavSync != null) {
+            btnWebDavSync.setOnClickListener(v -> showWebDavDialog());
         }
 
         btnToggleMiniDrawer = findViewById(R.id.btnToggleMiniDrawer);
@@ -386,6 +458,231 @@ public class MainActivity extends AppCompatActivity {
                     ? "🎬 抽屉边看边选小窗微缩: 已开启 - 点击切换"
                     : "🎬 抽屉边看边选小窗微缩: 已关闭 - 点击切换");
         }
+    }
+
+    private void updateSubtitleButtonText() {
+        if (btnToggleSubtitle != null && playerManager != null) {
+            btnToggleSubtitle.setText("💬 字幕/无障碍: " + playerManager.getCurrentSubtitleDesc() + " - 点击切换");
+        }
+    }
+
+    private void updateBufferModeButtonText() {
+        if (btnToggleBufferMode != null && playerManager != null) {
+            btnToggleBufferMode.setText("🛡️ 缓冲策略: " + playerManager.getBufferModeText() + " - 点击切换");
+        }
+    }
+
+    private void updateRecordingButtonText() {
+        if (btnToggleRecording != null) {
+            boolean rec = RecordingManager.getInstance().isRecording();
+            btnToggleRecording.setText(rec
+                    ? "🔴 实时节目录制 (DVR): 正在录制中 - 点击停止"
+                    : "🔴 实时节目录制 (DVR): 未录制 - 点击开始");
+        }
+    }
+
+    private void updateRecordingsListButtonText() {
+        if (btnRecordingsList != null) {
+            List<RecordingManager.RecordingItem> list = RecordingManager.getRecordings(this);
+            btnRecordingsList.setText("📁 已录制节目管理与查看 (共 " + list.size() + " 个)");
+        }
+    }
+
+    private void toggleLiveRecording() {
+        RecordingManager rm = RecordingManager.getInstance();
+        if (rm.isRecording()) {
+            rm.stopRecording();
+            Toast.makeText(this, "⏹️ 正在停止录制并保存文件...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
+        if (ch == null) {
+            Toast.makeText(this, "当前无正在播放的频道，无法录制", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String streamUrl = playerManager.getLastPlayedUrl();
+        if (streamUrl == null || streamUrl.isEmpty()) {
+            streamUrl = ch.getUrl();
+        }
+
+        boolean ok = rm.startRecording(this, ch, streamUrl, new RecordingManager.RecordingListener() {
+            @Override
+            public void onRecordingStarted(File outputFile, Channel channel) {
+                updateRecordingButtonText();
+                if (osdRecordBadge != null) {
+                    osdRecordBadge.setText("● REC 00:00:00");
+                    osdRecordBadge.setVisibility(View.VISIBLE);
+                }
+                Toast.makeText(MainActivity.this, "🔴 已开始实时录制: " + channel.getName(), Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onRecordingProgress(long elapsedMs, long bytesRecorded, String formattedRate) {
+                if (osdRecordBadge != null) {
+                    osdRecordBadge.setText("● REC " + formatDuration(elapsedMs) + " (" + formatBytes(bytesRecorded) + ")");
+                    osdRecordBadge.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onRecordingFinished(File outputFile, long durationMs, long bytesRecorded) {
+                updateRecordingButtonText();
+                updateRecordingsListButtonText();
+                if (osdRecordBadge != null) {
+                    osdRecordBadge.setVisibility(View.GONE);
+                }
+                Toast.makeText(MainActivity.this, "✅ 录制完成已保存: " + outputFile.getName() + " (" + formatBytes(bytesRecorded) + ")", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onRecordingError(String errorMessage) {
+                updateRecordingButtonText();
+                if (osdRecordBadge != null) {
+                    osdRecordBadge.setVisibility(View.GONE);
+                }
+                Toast.makeText(MainActivity.this, "❌ 录制失败: " + errorMessage, Toast.LENGTH_LONG).show();
+            }
+        });
+
+        if (!ok) {
+            Toast.makeText(this, "启动录制失败，请检查流地址有效性", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String formatDuration(long ms) {
+        long sec = (ms / 1000) % 60;
+        long min = (ms / (1000 * 60)) % 60;
+        long hour = ms / (1000 * 60 * 60);
+        return String.format(Locale.getDefault(), "%02d:%02d:%02d", hour, min, sec);
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 1024 * 1024) return String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format(Locale.getDefault(), "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    private void showRecordingsDialog() {
+        List<RecordingManager.RecordingItem> list = RecordingManager.getRecordings(this);
+        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(this);
+        b.setTitle("📁 已录制节目管理 (DVR)");
+
+        if (list.isEmpty()) {
+            b.setMessage("暂无已录制节目文件。\n\n提示：在播放直播时按菜单键或遥控快捷键即可一键开启实时节目录制，视频支持在手机浏览器直接下载回放。");
+            b.setPositiveButton("我知道了", null);
+            b.show();
+            return;
+        }
+
+        String[] itemNames = new String[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            RecordingManager.RecordingItem item = list.get(i);
+            itemNames[i] = item.fileName + "\n(" + item.getFormattedSize() + " · " + item.getFormattedDate() + ")";
+        }
+
+        b.setItems(itemNames, (dialog, which) -> {
+            RecordingManager.RecordingItem selected = list.get(which);
+            androidx.appcompat.app.AlertDialog.Builder op = new androidx.appcompat.app.AlertDialog.Builder(this);
+            op.setTitle("选择操作: " + selected.fileName);
+            String[] ops = new String[]{"▶ 立即在大屏播放该录制文件", "🗑️ 删除该录制文件"};
+            op.setItems(ops, (d2, actIdx) -> {
+                if (actIdx == 0) {
+                    if (playerManager != null) {
+                        playerManager.playChannel(new Channel(selected.fileName, "file://" + selected.filePath, "已录制节目", null, null, null, false));
+                        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+                        Toast.makeText(this, "正在播放本地录制: " + selected.fileName, Toast.LENGTH_SHORT).show();
+                    }
+                } else if (actIdx == 1) {
+                    RecordingManager.deleteRecording(this, selected.fileName);
+                    updateRecordingsListButtonText();
+                    Toast.makeText(this, "已删除录制文件", Toast.LENGTH_SHORT).show();
+                }
+            });
+            op.setNegativeButton("取消", null);
+            op.show();
+        });
+        b.setNegativeButton("关闭", null);
+        b.show();
+    }
+
+    private void showWebDavDialog() {
+        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(this);
+        b.setTitle("☁️ WebDAV 私有云盘同步");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(40, 20, 40, 10);
+
+        TextView tip = new TextView(this);
+        tip.setText("可与 Alist、群晖 NAS、坚果云等私有云盘无缝漫游配置：\n最近同步：" + WebDavClient.getFormattedLastSyncTime(this));
+        tip.setTextColor(0xFFCCCCCC);
+        tip.setTextSize(12);
+        layout.addView(tip);
+
+        final android.widget.EditText inputUrl = new android.widget.EditText(this);
+        inputUrl.setHint("WebDAV URL (如 http://192.168.1.100:5005/dav/)");
+        inputUrl.setText(WebDavClient.getWebDavUrl(this));
+        layout.addView(inputUrl);
+
+        final android.widget.EditText inputUser = new android.widget.EditText(this);
+        inputUser.setHint("用户名 (选填)");
+        inputUser.setText(WebDavClient.getWebDavUser(this));
+        layout.addView(inputUser);
+
+        final android.widget.EditText inputPass = new android.widget.EditText(this);
+        inputPass.setHint("密码 / Token (选填)");
+        inputPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        inputPass.setText(WebDavClient.getWebDavPass(this));
+        layout.addView(inputPass);
+
+        final android.widget.CheckBox chkAuto = new android.widget.CheckBox(this);
+        chkAuto.setText("开机启动时自动从云端同步配置");
+        chkAuto.setChecked(WebDavClient.isWebDavAutoSync(this));
+        chkAuto.setTextColor(0xFFFFFFFF);
+        layout.addView(chkAuto);
+
+        b.setView(layout);
+
+        b.setPositiveButton("☁️ 备份到云盘", (dialog, which) -> {
+            String url = inputUrl.getText().toString().trim();
+            String user = inputUser.getText().toString().trim();
+            String pass = inputPass.getText().toString().trim();
+            boolean auto = chkAuto.isChecked();
+            WebDavClient.saveWebDavConfig(this, url, user, pass, auto);
+
+            Toast.makeText(this, "正在上传配置到 WebDAV 云盘...", Toast.LENGTH_SHORT).show();
+            new Thread(() -> {
+                WebDavClient.SyncResult res = WebDavClient.uploadBackup(MainActivity.this, url, user, pass);
+                handler.post(() -> Toast.makeText(MainActivity.this, (res.success ? "🎉 " : "❌ ") + res.message, Toast.LENGTH_LONG).show());
+            }).start();
+        });
+
+        b.setNeutralButton("📥 从云盘恢复", (dialog, which) -> {
+            String url = inputUrl.getText().toString().trim();
+            String user = inputUser.getText().toString().trim();
+            String pass = inputPass.getText().toString().trim();
+            boolean auto = chkAuto.isChecked();
+            WebDavClient.saveWebDavConfig(this, url, user, pass, auto);
+
+            Toast.makeText(this, "正在从 WebDAV 云盘拉取配置...", Toast.LENGTH_SHORT).show();
+            new Thread(() -> {
+                WebDavClient.SyncResult res = WebDavClient.downloadAndRestore(MainActivity.this, url, user, pass);
+                handler.post(() -> {
+                    if (res.success) {
+                        applyAggregatedSubscriptions();
+                        updateSubscriptionSummary();
+                        Toast.makeText(MainActivity.this, "🎉 " + res.message, Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "❌ " + res.message, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }).start();
+        });
+
+        b.setNegativeButton("取消", null);
+        b.show();
     }
 
     private void showLeftSidebar() {
@@ -892,6 +1189,49 @@ public class MainActivity extends AppCompatActivity {
             public void onLanSyncPullRequested(String targetIp) {
                 handler.post(() -> pullFromLanTv(targetIp));
             }
+
+            @Override
+            public void onSubtitleToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    String sub = playerManager.toggleNextSubtitleTrack();
+                    updateSubtitleButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    Toast.makeText(MainActivity.this, "💬 " + sub, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onBufferModeToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    String buf = playerManager.toggleNextBufferMode();
+                    updateBufferModeButtonText();
+                    Toast.makeText(MainActivity.this, "🛡️ " + buf, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onRecordingToggled() {
+                handler.post(MainActivity.this::toggleLiveRecording);
+            }
+
+            @Override
+            public void onWebDavSyncRequested(String url, String user, String pass, boolean isUpload, boolean autoSync) {
+                new Thread(() -> {
+                    if (isUpload) {
+                        WebDavClient.uploadBackup(MainActivity.this, url, user, pass);
+                    } else {
+                        WebDavClient.SyncResult res = WebDavClient.downloadAndRestore(MainActivity.this, url, user, pass);
+                        if (res.success) {
+                            handler.post(() -> {
+                                applyAggregatedSubscriptions();
+                                updateSubscriptionSummary();
+                            });
+                        }
+                    }
+                }).start();
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -921,6 +1261,10 @@ public class MainActivity extends AppCompatActivity {
                             ? "软件兼容解码" : "硬件加速 (MediaCodec)");
                     json.put("aspect_ratio", playerManager != null ? playerManager.getAspectRatioModeText() : "自适应 (FIT)");
                     json.put("audio_track", playerManager != null ? playerManager.getCurrentAudioTrackDesc() : "标准立体声");
+                    json.put("is_recording", RecordingManager.getInstance().isRecording());
+                    json.put("subtitle_desc", playerManager != null ? playerManager.getCurrentSubtitleDesc() : "关");
+                    json.put("buffer_mode", playerManager != null ? playerManager.getBufferModeText() : "极速秒开");
+                    json.put("webdav_last_sync", WebDavClient.getFormattedLastSyncTime(MainActivity.this));
                     json.put("total_channels", allChannels != null ? allChannels.size() : 0);
                     json.put("device_id", com.tivilite.tv.license.LicenseManager.getDeviceId(MainActivity.this));
                     json.put("pro_status_text", com.tivilite.tv.license.LicenseManager.getProStatusText(MainActivity.this));
@@ -1071,6 +1415,12 @@ public class MainActivity extends AppCompatActivity {
         if (osdAudio != null && playerManager != null) {
             osdAudio.setText("🔊 " + playerManager.getCurrentAudioTrackDesc());
         }
+        if (osdSubtitle != null && playerManager != null) {
+            osdSubtitle.setText("💬 " + playerManager.getCurrentSubtitleDesc());
+        }
+        if (osdRecordBadge != null) {
+            osdRecordBadge.setVisibility(RecordingManager.getInstance().isRecording() ? View.VISIBLE : View.GONE);
+        }
 
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
             Glide.with(this).load(channel.getLogoUrl()).placeholder(R.drawable.app_banner).into(osdLogo);
@@ -1123,6 +1473,23 @@ public class MainActivity extends AppCompatActivity {
 
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+
+            // Shortcut: Dedicated TV REC or 'R' Key for live DVR recording
+            if (keyCode == KeyEvent.KEYCODE_MEDIA_RECORD || keyCode == KeyEvent.KEYCODE_R) {
+                toggleLiveRecording();
+                return true;
+            }
+
+            // Shortcut: Subtitles / Captions Toggle Key 'C'
+            if (keyCode == KeyEvent.KEYCODE_CAPTIONS || keyCode == KeyEvent.KEYCODE_C) {
+                if (playerManager != null) {
+                    String sub = playerManager.toggleNextSubtitleTrack();
+                    updateSubtitleButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    Toast.makeText(this, "💬 " + sub, Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
 
             // 1. Interactive Failover & Error Overlay Navigation
             if (playbackErrorOverlay != null && playbackErrorOverlay.getVisibility() == View.VISIBLE) {

@@ -265,11 +265,16 @@ public class SubscriptionManager {
             JSONObject settings = new JSONObject();
             settings.put("decoder_mode", sp.getInt("decoder_mode", 0));
             settings.put("aspect_ratio_mode", sp.getInt("aspect_ratio_mode", 0));
+            settings.put("buffer_mode", sp.getInt("buffer_mode", 0));
             settings.put("auto_boot_start", sp.getBoolean("auto_boot_start", true));
             settings.put("invert_up_down", sp.getBoolean("invert_up_down", false));
             settings.put("mini_drawer_preview", sp.getBoolean("mini_drawer_preview", true));
+            settings.put("webdav_url", sp.getString("webdav_url", ""));
+            settings.put("webdav_user", sp.getString("webdav_user", ""));
+            settings.put("webdav_pass", sp.getString("webdav_pass", ""));
+            settings.put("webdav_auto_sync", sp.getBoolean("webdav_auto_sync", false));
             root.put("settings", settings);
-            root.put("version", "1.2.0");
+            root.put("version", "1.3.0");
             root.put("export_time", System.currentTimeMillis());
         } catch (Exception ignored) {}
         return root;
@@ -309,9 +314,14 @@ public class SubscriptionManager {
                 SharedPreferences.Editor ed = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE).edit();
                 if (s.has("decoder_mode")) ed.putInt("decoder_mode", s.getInt("decoder_mode"));
                 if (s.has("aspect_ratio_mode")) ed.putInt("aspect_ratio_mode", s.getInt("aspect_ratio_mode"));
+                if (s.has("buffer_mode")) ed.putInt("buffer_mode", s.getInt("buffer_mode"));
                 if (s.has("auto_boot_start")) ed.putBoolean("auto_boot_start", s.getBoolean("auto_boot_start"));
                 if (s.has("invert_up_down")) ed.putBoolean("invert_up_down", s.getBoolean("invert_up_down"));
                 if (s.has("mini_drawer_preview")) ed.putBoolean("mini_drawer_preview", s.getBoolean("mini_drawer_preview"));
+                if (s.has("webdav_url")) ed.putString("webdav_url", s.getString("webdav_url"));
+                if (s.has("webdav_user")) ed.putString("webdav_user", s.getString("webdav_user"));
+                if (s.has("webdav_pass")) ed.putString("webdav_pass", s.getString("webdav_pass"));
+                if (s.has("webdav_auto_sync")) ed.putBoolean("webdav_auto_sync", s.getBoolean("webdav_auto_sync"));
                 ed.apply();
             }
             return true;
