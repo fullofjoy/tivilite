@@ -161,10 +161,12 @@ public class QosRadarManager {
         float droppedFps = playerManager.getRecentDroppedFps();
         data.droppedFrames = String.format(Locale.US, "%d 帧 (%.2f fps)", droppedTotal, droppedFps);
 
-        // 6. Network RTT & Protocol & Multi-WAN Bonding
+        // 6. Network RTT & Protocol & Multi-WAN & WebRTC Sync
         long rtt = playerManager.getEstimatedRttMs();
         String netBadge = com.tivilite.tv.network.MultiWanManager.getInstance(context).getBondingBadge();
-        data.networkRtt = (rtt > 0 ? rtt : 18) + " ms (" + netBadge + ")";
+        String syncBadge = com.tivilite.tv.sync.WebRtcSyncManager.getInstance(context).getSyncBadge();
+        String badgeSuffix = !syncBadge.isEmpty() ? (netBadge + " · " + syncBadge) : netBadge;
+        data.networkRtt = (rtt > 0 ? rtt : 18) + " ms (" + badgeSuffix + ")";
         data.ipProtocol = playerManager.isCurrentStreamIpv6() ? "IPv6" : "IPv4";
 
         this.latestData = data;

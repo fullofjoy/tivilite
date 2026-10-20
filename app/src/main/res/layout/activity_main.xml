@@ -305,6 +305,23 @@
             app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
 
         <TextView
+            android:id="@+id/osdSyncBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="#2600E5FF"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="⚡ 极速低延"
+            android:textColor="#00E5FF"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdPictureBadge"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
             android:id="@+id/osdProgram"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -809,8 +826,56 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnScanNasMedia"
-                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnToggleAiSubtitle"
                         android:text="🌐 双网卡聚合与竞速: 智能自适应 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 10: AI Live Subtitles -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleAiSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleBonding"
+                        android:nextFocusDown="@+id/btnToggleWebRtcSync"
+                        android:text="🤖 AI 实时双语字幕: 已关闭 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 10: Ultra-low Latency & Multi-Screen Sync -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleWebRtcSync"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAiSubtitle"
+                        android:nextFocusDown="@+id/btnViewCloudMesh"
+                        android:text="⚡ 极速低延迟与同屏同步: 标准缓冲 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 10: Cloud Mesh Multi-Room P2P Collaboration -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnViewCloudMesh"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleWebRtcSync"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="☁️ 局域网多房设备自组网与流转接力"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -824,7 +889,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleBonding"
+                        android:nextFocusUp="@+id/btnViewCloudMesh"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
@@ -1844,6 +1909,139 @@
                     android:textColor="@color/tv_text_secondary"
                     android:textSize="11sp" />
             </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 10: AI Subtitles Floating HUD Banner -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/subtitleHudBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="44dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#D9000000"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/subtitlePrimaryText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="欢迎收看现场直播"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:shadowColor="#FF000000"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="3" />
+
+            <TextView
+                android:id="@+id/subtitleSecondaryText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Welcome to the live broadcast"
+                android:textColor="#B0BEC5"
+                android:textSize="13sp"
+                android:visibility="visible" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 10: Cloud Mesh Devices Dialog -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/dialogCloudMesh"
+        android:layout_width="680dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:cardBackgroundColor="#F0101420"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="☁️ 局域网多设备自组网 · 流转接力"
+                    android:textColor="@color/tv_accent"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/meshMyDeviceNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="本机: 客厅电视"
+                    android:textColor="@color/tv_text_dim"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="自动发现同一局域网/Wi-Fi下的其它电视与手机，点击即可将当前频道与播放进度秒级接力至目标设备。"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="12sp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/meshRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginTop="14dp"
+                android:scrollbars="vertical" />
+
+            <TextView
+                android:id="@+id/meshEmptyText"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:gravity="center"
+                android:text="正在监听同一Wi-Fi下的其它电视或移动设备...\n(请确保另一台电视正在运行 TiviLite)"
+                android:textColor="@color/tv_text_dim"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnCloseMeshDialog"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="14dp"
+                app:backgroundTint="@null"
+                android:background="@drawable/selector_tv_button"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:text="关闭自组网窗口 (按返回键亦可)"
+                android:textColor="@color/tv_text_primary"
+                android:textSize="13sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

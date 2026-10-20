@@ -11,6 +11,9 @@ import com.tivilite.tv.plugin.PluginManager;
 import com.tivilite.tv.nas.SmbNasManager;
 import com.tivilite.tv.network.MultiWanManager;
 import com.tivilite.tv.ui.ThemeManager;
+import com.tivilite.tv.subtitle.AiSubtitleManager;
+import com.tivilite.tv.sync.WebRtcSyncManager;
+import com.tivilite.tv.mesh.CloudMeshManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
@@ -77,6 +80,11 @@ public class WebPushServer {
         void onNasScanRequested();
         void onBondingModeToggled();
         void onNasPlayRequested(String path, String name);
+
+        // Phase 10
+        void onAiSubtitleToggled();
+        void onWebRtcSyncToggled();
+        void onMeshHandoffRequested(String targetDeviceId);
     }
 
     public interface StatusProvider {
@@ -247,6 +255,12 @@ public class WebPushServer {
                         serveJsonResponse(out, ThemeManager.getInstance(context).getThemeStatusJson().toString());
                     } else if (firstLine.contains("/api/multiwan") && context != null) {
                         serveJsonResponse(out, MultiWanManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/subtitle") && context != null) {
+                        serveJsonResponse(out, AiSubtitleManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/sync") && context != null) {
+                        serveJsonResponse(out, WebRtcSyncManager.getInstance(context).getStatusJson().toString());
+                    } else if (firstLine.contains("/api/mesh") && context != null) {
+                        serveJsonResponse(out, CloudMeshManager.getInstance(context).getMeshStatusJson().toString());
                     } else {
                         serveHtmlPage(out);
                     }
@@ -596,6 +610,23 @@ public class WebPushServer {
                     return null;
                 }
 
+                // Phase 10: AI Subtitles, WebRTC Low-Latency Sync & Cloud Mesh
+                if (obj.has("toggle_ai_subtitle")) {
+                    listener.onAiSubtitleToggled();
+                    return null;
+                }
+                if (obj.has("toggle_webrtc_sync")) {
+                    listener.onWebRtcSyncToggled();
+                    return null;
+                }
+                if (requestLine.contains("/api/mesh/handoff") || obj.has("mesh_handoff")) {
+                    String targetId = obj.optString("mesh_handoff", obj.optString("targetDeviceId", ""));
+                    if (!targetId.isEmpty()) {
+                        listener.onMeshHandoffRequested(targetId);
+                        return "{\"success\":true,\"message\":\"已发起跨屏流转接力指令\"}";
+                    }
+                }
+
                 // Phase 7: EPG Program Reminders
                 if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
                     String ch = obj.optString("channel_name");
@@ -923,6 +954,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({toggle_font_scale:true})'><span>🔤</span><span id='rmFontBtn'>字号缩放</span></button>")
           .append("<button class='key-btn' onclick='postData({scan_nas:true})'><span>📁</span><span>扫描NAS</span></button>")
           .append("<button class='key-btn' onclick='postData({toggle_bonding:true})'><span>🌐</span><span id='rmBondingBtn'>双网聚合</span></button>")
+          .append("</div>")
+
+          // Phase 10: AI Subtitles, Low-Latency Sync & Cloud Mesh
+          .append("<div class='keys-grid' style='margin-top:6px;'>")
+          .append("<button class='key-btn' onclick='postData({toggle_ai_subtitle:true})'><span>🤖</span><span id='rmSubBtn'>AI字幕</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_webrtc_sync:true})'><span>⚡</span><span id='rmSyncBtn'>极速同步</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/mesh\").then(r=>r.json()).then(d=>alert(\"☁️ 自组网设备列表 (\"+d.peerCount+\" 台):\\n\"+JSON.stringify(d.peers,null,2)))'><span>☁️</span><span>Mesh网格</span></button>")
+          .append("<button class='key-btn' onclick='fetch(\"/api/sync\").then(r=>r.json()).then(d=>alert(\"⚡ 同屏同步模式: \"+d.syncModeName))'><span>📡</span><span>时钟微调</span></button>")
           .append("</div>")
 
           // Voice Command Input

@@ -57,6 +57,10 @@ import com.tivilite.tv.voice.VoiceCommandManager;
 import com.tivilite.tv.nas.SmbNasManager;
 import com.tivilite.tv.network.MultiWanManager;
 import com.tivilite.tv.ui.ThemeManager;
+import com.tivilite.tv.subtitle.AiSubtitleManager;
+import com.tivilite.tv.sync.WebRtcSyncManager;
+import com.tivilite.tv.mesh.CloudMeshManager;
+import com.tivilite.tv.ui.MeshDeviceAdapter;
 import android.content.Context;
 
 public class MainActivity extends AppCompatActivity {
@@ -191,6 +195,21 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnToggleFontScale;
     private android.widget.Button btnScanNasMedia;
     private android.widget.Button btnToggleBonding;
+
+    // Phase 10: AI Subtitles, WebRTC Sync & Cloud Mesh
+    private android.widget.Button btnToggleAiSubtitle;
+    private android.widget.Button btnToggleWebRtcSync;
+    private android.widget.Button btnViewCloudMesh;
+    private CardView subtitleHudBanner;
+    private TextView subtitlePrimaryText;
+    private TextView subtitleSecondaryText;
+    private TextView osdSyncBadge;
+    private CardView dialogCloudMesh;
+    private TextView meshMyDeviceNameText;
+    private RecyclerView meshRecyclerView;
+    private TextView meshEmptyText;
+    private android.widget.Button btnCloseMeshDialog;
+    private MeshDeviceAdapter meshDeviceAdapter;
 
     private CardView castHudBanner;
     private TextView castTitleText;
@@ -381,6 +400,87 @@ public class MainActivity extends AppCompatActivity {
             updateBondingButtonText();
             btnToggleBonding.setOnClickListener(v -> toggleBonding());
         }
+
+        btnToggleAiSubtitle = findViewById(R.id.btnToggleAiSubtitle);
+        if (btnToggleAiSubtitle != null) {
+            updateAiSubtitleButtonText();
+            btnToggleAiSubtitle.setOnClickListener(v -> toggleAiSubtitle());
+        }
+
+        btnToggleWebRtcSync = findViewById(R.id.btnToggleWebRtcSync);
+        if (btnToggleWebRtcSync != null) {
+            updateWebRtcSyncButtonText();
+            btnToggleWebRtcSync.setOnClickListener(v -> toggleWebRtcSync());
+        }
+
+        btnViewCloudMesh = findViewById(R.id.btnViewCloudMesh);
+        if (btnViewCloudMesh != null) {
+            btnViewCloudMesh.setOnClickListener(v -> showCloudMeshDialog());
+        }
+
+        subtitleHudBanner = findViewById(R.id.subtitleHudBanner);
+        subtitlePrimaryText = findViewById(R.id.subtitlePrimaryText);
+        subtitleSecondaryText = findViewById(R.id.subtitleSecondaryText);
+        osdSyncBadge = findViewById(R.id.osdSyncBadge);
+
+        dialogCloudMesh = findViewById(R.id.dialogCloudMesh);
+        meshMyDeviceNameText = findViewById(R.id.meshMyDeviceNameText);
+        meshRecyclerView = findViewById(R.id.meshRecyclerView);
+        meshEmptyText = findViewById(R.id.meshEmptyText);
+        btnCloseMeshDialog = findViewById(R.id.btnCloseMeshDialog);
+        if (btnCloseMeshDialog != null) {
+            btnCloseMeshDialog.setOnClickListener(v -> {
+                if (dialogCloudMesh != null) dialogCloudMesh.setVisibility(View.GONE);
+            });
+        }
+
+        AiSubtitleManager.getInstance(this).setSubtitleListener(new AiSubtitleManager.SubtitleListener() {
+            @Override
+            public void onSubtitleUpdated(String primaryText, String secondaryText) {
+                if (subtitleHudBanner != null) {
+                    subtitleHudBanner.setVisibility(View.VISIBLE);
+                }
+                if (subtitlePrimaryText != null) {
+                    subtitlePrimaryText.setText(primaryText);
+                }
+                if (subtitleSecondaryText != null) {
+                    if (secondaryText != null && !secondaryText.isEmpty()) {
+                        subtitleSecondaryText.setText(secondaryText);
+                        subtitleSecondaryText.setVisibility(View.VISIBLE);
+                    } else {
+                        subtitleSecondaryText.setVisibility(View.GONE);
+                    }
+                }
+            }
+
+            @Override
+            public void onSubtitleCleared() {
+                if (subtitleHudBanner != null) {
+                    subtitleHudBanner.setVisibility(View.GONE);
+                }
+            }
+        });
+
+        CloudMeshManager.getInstance(this).setHandoffListener((chName, chUrl, pts) -> {
+            if (chUrl == null || chUrl.isEmpty()) return;
+            Channel target = null;
+            if (allChannels != null) {
+                for (Channel c : allChannels) {
+                    if (chUrl.equals(c.getUrl()) || (chName != null && chName.equals(c.getName()))) {
+                        target = c;
+                        break;
+                    }
+                }
+            }
+            if (target == null) {
+                target = new Channel(8888, chName != null ? chName : "跨屏流转", "☁️ 局域网自组网接力", chUrl);
+            }
+            playSelectedChannel(target);
+            if (pts > 0 && playerManager != null) {
+                playerManager.seekTo(pts);
+            }
+            Toast.makeText(MainActivity.this, "📲 收到跨屏流转，接力播放: " + target.getName(), Toast.LENGTH_LONG).show();
+        });
 
         qosRadarOverlay = findViewById(R.id.qosRadarOverlay);
         qosDownloadSpeed = findViewById(R.id.qosDownloadSpeed);
@@ -921,6 +1021,15 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case BONDING_MODE_TOGGLE:
                 toggleBonding();
+                break;
+            case AI_SUBTITLE_TOGGLE:
+                toggleAiSubtitle();
+                break;
+            case WEBRTC_SYNC_TOGGLE:
+                toggleWebRtcSync();
+                break;
+            case CLOUD_MESH_DIALOG:
+                showCloudMeshDialog();
                 break;
             case UNKNOWN:
             default:
@@ -2014,6 +2123,24 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "🎬 正在播放 NAS 影视: " + target.getName(), Toast.LENGTH_SHORT).show();
                 });
             }
+
+            @Override
+            public void onAiSubtitleToggled() {
+                handler.post(MainActivity.this::toggleAiSubtitle);
+            }
+
+            @Override
+            public void onWebRtcSyncToggled() {
+                handler.post(MainActivity.this::toggleWebRtcSync);
+            }
+
+            @Override
+            public void onMeshHandoffRequested(String targetDeviceId) {
+                handler.post(() -> {
+                    CloudMeshManager.getInstance(MainActivity.this).sendHandoffToPeer(targetDeviceId);
+                    Toast.makeText(MainActivity.this, "📲 手机遥控已发起跨屏接力", Toast.LENGTH_SHORT).show();
+                });
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2227,6 +2354,20 @@ public class MainActivity extends AppCompatActivity {
             osdPictureBadge.setVisibility(View.VISIBLE);
         }
 
+        if (osdSyncBadge != null) {
+            String syncBadge = WebRtcSyncManager.getInstance(this).getSyncBadge();
+            if (!syncBadge.isEmpty()) {
+                osdSyncBadge.setText(syncBadge);
+                osdSyncBadge.setVisibility(View.VISIBLE);
+            } else {
+                osdSyncBadge.setVisibility(View.GONE);
+            }
+        }
+
+        long currentPts = playerManager != null ? playerManager.getCurrentPosition() : 0;
+        CloudMeshManager.getInstance(this).updatePlaybackState(channel.getName(), channel.getUrl(), currentPts);
+        AiSubtitleManager.getInstance(this).notifyStreamChanged(channel.getName());
+
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
             Glide.with(this).load(channel.getLogoUrl()).placeholder(R.drawable.app_banner).into(osdLogo);
         } else {
@@ -2311,6 +2452,18 @@ public class MainActivity extends AppCompatActivity {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     dialogReminders.setVisibility(View.GONE);
+                }
+                return true;
+            }
+            return super.dispatchKeyEvent(event);
+        }
+
+        // 0. Cloud Mesh Dialog Remote Navigation
+        if (dialogCloudMesh != null && dialogCloudMesh.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    dialogCloudMesh.setVisibility(View.GONE);
                 }
                 return true;
             }
@@ -2779,6 +2932,7 @@ public class MainActivity extends AppCompatActivity {
         if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
         if (dialogAiRecommendations != null) dialogAiRecommendations.setVisibility(View.GONE);
         if (dialogReminders != null) dialogReminders.setVisibility(View.GONE);
+        if (dialogCloudMesh != null) dialogCloudMesh.setVisibility(View.GONE);
         if (bottomOsd != null) bottomOsd.setVisibility(View.GONE);
     }
 
@@ -2870,12 +3024,14 @@ public class MainActivity extends AppCompatActivity {
         tm.applyThemeToCard(webConfigDialog);
         tm.applyThemeToCard(dialogAiRecommendations);
         tm.applyThemeToCard(dialogReminders);
+        tm.applyThemeToCard(dialogCloudMesh);
         tm.applyThemeToCard(qosRadarOverlay);
         tm.applyThemeToCard(castHudBanner);
         tm.applyThemeToCard(playbackErrorOverlay);
         tm.applyThemeToCard(pipCard);
         tm.applyThemeToCard(voiceHudBanner);
         tm.applyThemeToCard(reminderHudBanner);
+        tm.applyThemeToCard(subtitleHudBanner);
         applyCurrentFontScale();
     }
 
@@ -2887,6 +3043,76 @@ public class MainActivity extends AppCompatActivity {
         if (osdSource != null) osdSource.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13 * mult);
         if (epgTitle != null) epgTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20 * mult);
         if (epgSubtitle != null) epgSubtitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13 * mult);
+        if (subtitlePrimaryText != null) subtitlePrimaryText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20 * mult);
+        if (subtitleSecondaryText != null) subtitleSecondaryText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13 * mult);
+    }
+
+    private void toggleAiSubtitle() {
+        String modeName = AiSubtitleManager.getInstance(this).toggleNextMode();
+        updateAiSubtitleButtonText();
+        Toast.makeText(this, modeName, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateAiSubtitleButtonText() {
+        if (btnToggleAiSubtitle != null) {
+            btnToggleAiSubtitle.setText("🤖 AI 实时双语字幕: " + AiSubtitleManager.getInstance(this).getModeName() + " - 点击切换");
+        }
+    }
+
+    private void toggleWebRtcSync() {
+        String modeName = WebRtcSyncManager.getInstance(this).toggleNextSyncMode();
+        updateWebRtcSyncButtonText();
+        if (osdSyncBadge != null) {
+            String badge = WebRtcSyncManager.getInstance(this).getSyncBadge();
+            if (!badge.isEmpty()) {
+                osdSyncBadge.setText(badge);
+                osdSyncBadge.setVisibility(View.VISIBLE);
+            } else {
+                osdSyncBadge.setVisibility(View.GONE);
+            }
+        }
+        Toast.makeText(this, modeName, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateWebRtcSyncButtonText() {
+        if (btnToggleWebRtcSync != null) {
+            btnToggleWebRtcSync.setText("⚡ 极速低延迟与同屏同步: " + WebRtcSyncManager.getInstance(this).getSyncModeName() + " - 点击切换");
+        }
+    }
+
+    private void showCloudMeshDialog() {
+        if (dialogCloudMesh == null) return;
+        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+
+        if (meshMyDeviceNameText != null) {
+            meshMyDeviceNameText.setText("本机: " + CloudMeshManager.getInstance(this).getDeviceName());
+        }
+
+        List<CloudMeshManager.PeerDevice> peers = CloudMeshManager.getInstance(this).getActivePeers();
+        if (meshDeviceAdapter == null) {
+            meshDeviceAdapter = new MeshDeviceAdapter(peer -> {
+                CloudMeshManager.getInstance(this).sendHandoffToPeer(peer.deviceId);
+                Toast.makeText(this, "📲 已将当前节目推流接力至: " + peer.name, Toast.LENGTH_LONG).show();
+                dialogCloudMesh.setVisibility(View.GONE);
+            });
+            if (meshRecyclerView != null) {
+                meshRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+                meshRecyclerView.setAdapter(meshDeviceAdapter);
+            }
+        }
+        meshDeviceAdapter.setPeers(peers);
+
+        if (meshEmptyText != null) {
+            meshEmptyText.setVisibility(peers.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+        if (meshRecyclerView != null) {
+            meshRecyclerView.setVisibility(peers.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+
+        dialogCloudMesh.setVisibility(View.VISIBLE);
+        if (btnCloseMeshDialog != null) {
+            btnCloseMeshDialog.requestFocus();
+        }
     }
 
     private void scanNasMedia(boolean showToast) {
@@ -2923,6 +3149,7 @@ public class MainActivity extends AppCompatActivity {
         if (dlnaDmrManager != null) dlnaDmrManager.stop();
         if (playerManager != null) playerManager.release();
         if (webServer != null) webServer.stop();
+        CloudMeshManager.getInstance(this).stop();
         handler.removeCallbacksAndMessages(null);
     }
 }

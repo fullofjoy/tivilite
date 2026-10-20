@@ -35,6 +35,9 @@ public class VoiceCommandManager {
         FONT_SCALE_TOGGLE,
         SCAN_NAS,
         BONDING_MODE_TOGGLE,
+        AI_SUBTITLE_TOGGLE,
+        WEBRTC_SYNC_TOGGLE,
+        CLOUD_MESH_DIALOG,
         UNKNOWN
     }
 
@@ -151,6 +154,21 @@ public class VoiceCommandManager {
         // 15. Phase 9 双网聚合与竞速模式
         if (input.contains("双网聚合") || input.contains("双网") || input.contains("网络聚合") || input.contains("竞速拉流") || input.contains("网卡模式")) {
             return new VoiceResult(Action.BONDING_MODE_TOGGLE, null, 0, "🌐 已切换双网卡聚合与竞速模式");
+        }
+
+        // 16. Phase 10 AI 实时字幕与双语同传
+        if (input.contains("ai字幕") || input.contains("双语字幕") || input.contains("同传") || input.contains("实时字幕") || input.contains("翻译字幕")) {
+            return new VoiceResult(Action.AI_SUBTITLE_TOGGLE, null, 0, "🤖 已切换 AI 实时同传双语字幕");
+        }
+
+        // 17. Phase 10 极低延迟赛事同屏同步
+        if (input.contains("极速同步") || input.contains("赛事同步") || input.contains("低延迟") || input.contains("同屏") || input.contains("声音对齐")) {
+            return new VoiceResult(Action.WEBRTC_SYNC_TOGGLE, null, 0, "⚡ 已切换极低延迟与多屏同步模式");
+        }
+
+        // 18. Phase 10 局域网设备自组网与流转接力
+        if (input.contains("流转接力") || input.contains("设备网格") || input.contains("自组网") || input.contains("多房电视") || input.contains("卧室接力")) {
+            return new VoiceResult(Action.CLOUD_MESH_DIALOG, null, 0, "☁️ 正在为您打开局域网设备自组网与流转接力");
         }
 
         // 10. 数字切台 (如 "1台", "换到第12台")
