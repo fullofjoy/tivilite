@@ -31,6 +31,10 @@ public class VoiceCommandManager {
         QOS_RADAR,
         AUTO_FAILOVER,
         EXIT_CAST,
+        THEME_TOGGLE,
+        FONT_SCALE_TOGGLE,
+        SCAN_NAS,
+        BONDING_MODE_TOGGLE,
         UNKNOWN
     }
 
@@ -129,6 +133,24 @@ public class VoiceCommandManager {
         // 12. Phase 8 DLNA 投屏退出
         if (input.contains("退出投屏") || input.contains("停止投屏") || input.contains("关掉投屏") || input.contains("返回电视")) {
             return new VoiceResult(Action.EXIT_CAST, null, 0, "📲 已退出无线投屏，返回直播频道");
+        }
+
+        // 13. Phase 9 主题与大字号模式
+        if (input.contains("主题") || input.contains("皮肤") || input.contains("毛玻璃") || input.contains("暗黑") || input.contains("长辈模式") || input.contains("切换主题")) {
+            return new VoiceResult(Action.THEME_TOGGLE, null, 0, "🎨 已切换大屏视觉主题");
+        }
+        if (input.contains("字号") || input.contains("字体大小") || input.contains("大字") || input.contains("字体大点") || input.contains("小字")) {
+            return new VoiceResult(Action.FONT_SCALE_TOGGLE, null, 0, "🔤 已切换界面字体显示尺寸");
+        }
+
+        // 14. Phase 9 私有云影视 NAS 扫描
+        if (input.contains("扫描电影") || input.contains("家庭影库") || input.contains("本地视频") || input.contains("打开nas") || input.contains("影视库")) {
+            return new VoiceResult(Action.SCAN_NAS, null, 0, "📁 正在为您扫描家庭私有云与本地影视库");
+        }
+
+        // 15. Phase 9 双网聚合与竞速模式
+        if (input.contains("双网聚合") || input.contains("双网") || input.contains("网络聚合") || input.contains("竞速拉流") || input.contains("网卡模式")) {
+            return new VoiceResult(Action.BONDING_MODE_TOGGLE, null, 0, "🌐 已切换双网卡聚合与竞速模式");
         }
 
         // 10. 数字切台 (如 "1台", "换到第12台")

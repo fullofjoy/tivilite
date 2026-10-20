@@ -745,8 +745,72 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnToggleQosRadar"
-                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnToggleTheme"
                         android:text="🛡️ 多源智能自动容灾: 已开启 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 9: Theme Customizer -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleTheme"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAutoFailover"
+                        android:nextFocusDown="@+id/btnToggleFontScale"
+                        android:text="🎨 大屏视觉主题: 赛博暗黑 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 9: Font Scale Customizer -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleFontScale"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleTheme"
+                        android:nextFocusDown="@+id/btnScanNasMedia"
+                        android:text="🔤 界面字体尺寸: 标准字号 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 9: Local NAS / USB Media Scanner -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnScanNasMedia"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleFontScale"
+                        android:nextFocusDown="@+id/btnToggleBonding"
+                        android:text="📁 扫描家庭私有云影视与本地存储 (NAS)"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 9: Multi-WAN Dual Network Bonding -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleBonding"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnScanNasMedia"
+                        android:nextFocusDown="@+id/btnCheckUpdate"
+                        android:text="🌐 双网卡聚合与竞速: 智能自适应 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -760,7 +824,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleAutoFailover"
+                        android:nextFocusUp="@+id/btnToggleBonding"
                         android:nextFocusDown="@+id/btnCloseDialog"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"

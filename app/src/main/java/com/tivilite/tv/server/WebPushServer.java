@@ -8,6 +8,9 @@ import com.tivilite.tv.epg.ReminderManager;
 import com.tivilite.tv.player.LanMulticastManager;
 import com.tivilite.tv.player.QosRadarManager;
 import com.tivilite.tv.plugin.PluginManager;
+import com.tivilite.tv.nas.SmbNasManager;
+import com.tivilite.tv.network.MultiWanManager;
+import com.tivilite.tv.ui.ThemeManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
@@ -67,6 +70,13 @@ public class WebPushServer {
         void onQosRadarToggled();
         void onAutoFailoverToggled();
         void onCastStopRequested();
+
+        // Phase 9
+        void onThemeToggled();
+        void onFontScaleToggled();
+        void onNasScanRequested();
+        void onBondingModeToggled();
+        void onNasPlayRequested(String path, String name);
     }
 
     public interface StatusProvider {
@@ -231,6 +241,12 @@ public class WebPushServer {
                         c.put("title", dmr.getCurrentMediaTitle());
                         c.put("uri", dmr.getCurrentMediaUri());
                         serveJsonResponse(out, c.toString());
+                    } else if (firstLine.contains("/api/nas") && context != null) {
+                        serveJsonResponse(out, SmbNasManager.getInstance(context).getMediaListJson().toString());
+                    } else if (firstLine.contains("/api/theme") && context != null) {
+                        serveJsonResponse(out, ThemeManager.getInstance(context).getThemeStatusJson().toString());
+                    } else if (firstLine.contains("/api/multiwan") && context != null) {
+                        serveJsonResponse(out, MultiWanManager.getInstance(context).getStatusJson().toString());
                     } else {
                         serveHtmlPage(out);
                     }
@@ -392,6 +408,22 @@ public class WebPushServer {
                             listener.onCastStopRequested();
                             return null;
                         }
+                        if ("theme".equals(key)) {
+                            listener.onThemeToggled();
+                            return null;
+                        }
+                        if ("font_scale".equals(key)) {
+                            listener.onFontScaleToggled();
+                            return null;
+                        }
+                        if ("scan_nas".equals(key)) {
+                            listener.onNasScanRequested();
+                            return null;
+                        }
+                        if ("bonding".equals(key)) {
+                            listener.onBondingModeToggled();
+                            return null;
+                        }
                         listener.onRemoteKeyReceived(key, val);
                         return null;
                     }
@@ -536,6 +568,32 @@ public class WebPushServer {
                             return "{\"success\":" + ok + ",\"message\":\"插件已成功导入/更新\"}";
                         }
                     }
+                }
+
+                // Phase 9: Theme, Font Scale, NAS Media & Multi-WAN
+                if (obj.has("toggle_theme")) {
+                    listener.onThemeToggled();
+                    return null;
+                }
+                if (obj.has("toggle_font_scale")) {
+                    listener.onFontScaleToggled();
+                    return null;
+                }
+                if (requestLine.contains("/api/nas/scan") || obj.has("scan_nas")) {
+                    listener.onNasScanRequested();
+                    return "{\"success\":true,\"message\":\"已触发扫描本地存储与家庭私有云影视库\"}";
+                }
+                if (requestLine.contains("/api/nas/play") || obj.has("play_nas_path")) {
+                    String path = obj.optString("play_nas_path", obj.optString("path", ""));
+                    String name = obj.optString("name", "本地影片");
+                    if (!path.isEmpty()) {
+                        listener.onNasPlayRequested(path, name);
+                        return "{\"success\":true,\"message\":\"电视正在播放: " + name + "\"}";
+                    }
+                }
+                if (obj.has("toggle_bonding")) {
+                    listener.onBondingModeToggled();
+                    return null;
                 }
 
                 // Phase 7: EPG Program Reminders
@@ -857,6 +915,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({toggle_auto_failover:true})'><span>🛡️</span><span id='rmFailoverBtn'>智能容灾</span></button>")
           .append("<button class='key-btn' style='background:rgba(239,68,68,0.15);color:#EF4444;' onclick='postData({stop_cast:true})'><span>📲</span><span>退出投屏</span></button>")
           .append("<button class='key-btn' style='background:rgba(61,123,253,0.15);color:var(--blue);' onclick='showTab(\"settings\")'><span>🔌</span><span>插件中心</span></button>")
+          .append("</div>")
+
+          // Phase 9: Theme, Font Scale, NAS & Multi-WAN
+          .append("<div class='keys-grid'>")
+          .append("<button class='key-btn' onclick='postData({toggle_theme:true})'><span>🎨</span><span id='rmThemeBtn'>大屏主题</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_font_scale:true})'><span>🔤</span><span id='rmFontBtn'>字号缩放</span></button>")
+          .append("<button class='key-btn' onclick='postData({scan_nas:true})'><span>📁</span><span>扫描NAS</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_bonding:true})'><span>🌐</span><span id='rmBondingBtn'>双网聚合</span></button>")
           .append("</div>")
 
           // Voice Command Input

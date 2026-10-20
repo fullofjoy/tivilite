@@ -809,6 +809,9 @@ public class PlayerManager {
     }
 
     public void playChannel(Channel channel) {
+        if (this.currentChannel != null && this.currentChannel.getUrl() != null && this.currentChannel.getUrl().startsWith("/") && player != null) {
+            com.tivilite.tv.nas.SmbNasManager.getInstance(context).saveResumePosition(this.currentChannel.getUrl(), player.getCurrentPosition());
+        }
         this.currentChannel = channel;
         this.isCatchupMode = false;
         this.autoRetryCount = 0;
@@ -917,10 +920,29 @@ public class PlayerManager {
         }
 
         String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(targetUrl, 8888);
-        MediaItem mediaItem = MediaItem.fromUri(Uri.parse(playable));
+        android.net.Uri mediaUri = playable.startsWith("/") ? android.net.Uri.fromFile(new java.io.File(playable)) : android.net.Uri.parse(playable);
+        MediaItem mediaItem = MediaItem.fromUri(mediaUri);
         player.setMediaItem(mediaItem);
         player.prepare();
+        if (targetUrl.startsWith("/")) {
+            long resumePos = com.tivilite.tv.nas.SmbNasManager.getInstance(context).getResumePosition(targetUrl);
+            if (resumePos > 0) {
+                player.seekTo(resumePos);
+            }
+        }
         player.play();
+    }
+
+    public void play() {
+        if (player != null) player.play();
+    }
+
+    public void pause() {
+        if (player != null) player.pause();
+    }
+
+    public boolean isPlaying() {
+        return player != null && player.isPlaying();
     }
 
     public Channel getCurrentChannel() {
@@ -999,7 +1021,8 @@ public class PlayerManager {
         }
 
         String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(channel.getUrl(), 8888);
-        MediaItem item = MediaItem.fromUri(playable);
+        android.net.Uri mediaUri = playable.startsWith("/") ? android.net.Uri.fromFile(new java.io.File(playable)) : android.net.Uri.parse(playable);
+        MediaItem item = MediaItem.fromUri(mediaUri);
         pipPlayer.setMediaItem(item);
         pipPlayer.prepare();
         pipPlayer.setPlayWhenReady(true);
@@ -1180,6 +1203,9 @@ public class PlayerManager {
     public void release() {
         stopPip();
         handler.removeCallbacksAndMessages(null);
+        if (currentChannel != null && currentChannel.getUrl() != null && currentChannel.getUrl().startsWith("/") && player != null) {
+            com.tivilite.tv.nas.SmbNasManager.getInstance(context).saveResumePosition(currentChannel.getUrl(), player.getCurrentPosition());
+        }
         if (player != null) {
             player.release();
             player = null;

@@ -54,6 +54,9 @@ import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import com.tivilite.tv.ui.AiRecommendationsAdapter;
 import com.tivilite.tv.voice.VoiceCommandManager;
+import com.tivilite.tv.nas.SmbNasManager;
+import com.tivilite.tv.network.MultiWanManager;
+import com.tivilite.tv.ui.ThemeManager;
 import android.content.Context;
 
 public class MainActivity extends AppCompatActivity {
@@ -182,6 +185,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView qosIpProtocol;
     private android.widget.Button btnToggleQosRadar;
     private android.widget.Button btnToggleAutoFailover;
+
+    // Phase 9: Theme, Font Scale, NAS & Multi-WAN
+    private android.widget.Button btnToggleTheme;
+    private android.widget.Button btnToggleFontScale;
+    private android.widget.Button btnScanNasMedia;
+    private android.widget.Button btnToggleBonding;
 
     private CardView castHudBanner;
     private TextView castTitleText;
@@ -348,6 +357,29 @@ public class MainActivity extends AppCompatActivity {
         if (btnToggleAutoFailover != null) {
             updateAutoFailoverButtonText();
             btnToggleAutoFailover.setOnClickListener(v -> toggleAutoFailover());
+        }
+
+        btnToggleTheme = findViewById(R.id.btnToggleTheme);
+        if (btnToggleTheme != null) {
+            updateThemeButtonText();
+            btnToggleTheme.setOnClickListener(v -> toggleTheme());
+        }
+
+        btnToggleFontScale = findViewById(R.id.btnToggleFontScale);
+        if (btnToggleFontScale != null) {
+            updateFontScaleButtonText();
+            btnToggleFontScale.setOnClickListener(v -> toggleFontScale());
+        }
+
+        btnScanNasMedia = findViewById(R.id.btnScanNasMedia);
+        if (btnScanNasMedia != null) {
+            btnScanNasMedia.setOnClickListener(v -> scanNasMedia(true));
+        }
+
+        btnToggleBonding = findViewById(R.id.btnToggleBonding);
+        if (btnToggleBonding != null) {
+            updateBondingButtonText();
+            btnToggleBonding.setOnClickListener(v -> toggleBonding());
         }
 
         qosRadarOverlay = findViewById(R.id.qosRadarOverlay);
@@ -633,6 +665,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         epgRecyclerView.setAdapter(epgAdapter);
+        applyCurrentTheme();
     }
 
     private void updateDirectionButtonText() {
@@ -876,6 +909,18 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case EXIT_CAST:
                 exitCast();
+                break;
+            case THEME_TOGGLE:
+                toggleTheme();
+                break;
+            case FONT_SCALE_TOGGLE:
+                toggleFontScale();
+                break;
+            case SCAN_NAS:
+                scanNasMedia(true);
+                break;
+            case BONDING_MODE_TOGGLE:
+                toggleBonding();
                 break;
             case UNKNOWN:
             default:
@@ -1928,6 +1973,47 @@ public class MainActivity extends AppCompatActivity {
             public void onCastStopRequested() {
                 handler.post(MainActivity.this::exitCast);
             }
+
+            @Override
+            public void onThemeToggled() {
+                handler.post(MainActivity.this::toggleTheme);
+            }
+
+            @Override
+            public void onFontScaleToggled() {
+                handler.post(MainActivity.this::toggleFontScale);
+            }
+
+            @Override
+            public void onNasScanRequested() {
+                handler.post(() -> scanNasMedia(true));
+            }
+
+            @Override
+            public void onBondingModeToggled() {
+                handler.post(MainActivity.this::toggleBonding);
+            }
+
+            @Override
+            public void onNasPlayRequested(String path, String name) {
+                handler.post(() -> {
+                    if (path == null || path.isEmpty()) return;
+                    Channel target = null;
+                    if (allChannels != null) {
+                        for (Channel c : allChannels) {
+                            if (path.equals(c.getUrl())) {
+                                target = c;
+                                break;
+                            }
+                        }
+                    }
+                    if (target == null) {
+                        target = new Channel(9999, "🎬 " + (name != null ? name : "NAS 影片"), "📁 家庭 NAS 影视库", path);
+                    }
+                    playSelectedChannel(target);
+                    Toast.makeText(MainActivity.this, "🎬 正在播放 NAS 影视: " + target.getName(), Toast.LENGTH_SHORT).show();
+                });
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -2016,6 +2102,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void applyAggregatedSubscriptions() {
         allChannels = SubscriptionManager.getAggregatedChannels(this);
+        List<Channel> nasChannels = SmbNasManager.getInstance(this).getAsChannels(allChannels.size() + 1);
+        if (nasChannels != null && !nasChannels.isEmpty()) {
+            allChannels.addAll(nasChannels);
+        }
         groupedChannels = M3UParser.groupByCategories(this, allChannels);
 
         List<String> groups = new ArrayList<>(groupedChannels.keySet());
@@ -2732,6 +2822,86 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "已退出无线投屏", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void toggleTheme() {
+        ThemeManager tm = ThemeManager.getInstance(this);
+        String name = tm.toggleNextTheme();
+        updateThemeButtonText();
+        applyCurrentTheme();
+        Toast.makeText(this, "🎨 大屏主题已切换: " + name, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateThemeButtonText() {
+        if (btnToggleTheme != null) {
+            btnToggleTheme.setText("🎨 大屏视觉主题: " + ThemeManager.getInstance(this).getThemeName() + " - 点击切换");
+        }
+    }
+
+    private void toggleFontScale() {
+        ThemeManager tm = ThemeManager.getInstance(this);
+        String name = tm.toggleNextFontScale();
+        updateFontScaleButtonText();
+        applyCurrentFontScale();
+        Toast.makeText(this, "🔤 界面字体已切换: " + name, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateFontScaleButtonText() {
+        if (btnToggleFontScale != null) {
+            btnToggleFontScale.setText("🔤 界面字体尺寸: " + ThemeManager.getInstance(this).getFontScaleName() + " - 点击切换");
+        }
+    }
+
+    private void toggleBonding() {
+        MultiWanManager mwm = MultiWanManager.getInstance(this);
+        String text = mwm.toggleNextBondingMode();
+        updateBondingButtonText();
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateBondingButtonText() {
+        if (btnToggleBonding != null) {
+            btnToggleBonding.setText(MultiWanManager.getInstance(this).getBondingStatusText() + " - 点击切换");
+        }
+    }
+
+    private void applyCurrentTheme() {
+        ThemeManager tm = ThemeManager.getInstance(this);
+        tm.applyThemeToCard(webConfigDialog);
+        tm.applyThemeToCard(dialogAiRecommendations);
+        tm.applyThemeToCard(dialogReminders);
+        tm.applyThemeToCard(qosRadarOverlay);
+        tm.applyThemeToCard(castHudBanner);
+        tm.applyThemeToCard(playbackErrorOverlay);
+        tm.applyThemeToCard(pipCard);
+        tm.applyThemeToCard(voiceHudBanner);
+        tm.applyThemeToCard(reminderHudBanner);
+        applyCurrentFontScale();
+    }
+
+    private void applyCurrentFontScale() {
+        float mult = ThemeManager.getInstance(this).getFontMultiplier();
+        if (osdChannelNum != null) osdChannelNum.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 28 * mult);
+        if (osdChannelName != null) osdChannelName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 22 * mult);
+        if (osdProgram != null) osdProgram.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15 * mult);
+        if (osdSource != null) osdSource.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13 * mult);
+        if (epgTitle != null) epgTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20 * mult);
+        if (epgSubtitle != null) epgSubtitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13 * mult);
+    }
+
+    private void scanNasMedia(boolean showToast) {
+        if (showToast) {
+            Toast.makeText(this, "📁 正在全盘检索本地与 NAS 影视库...", Toast.LENGTH_SHORT).show();
+        }
+        new Thread(() -> {
+            List<SmbNasManager.MediaItem> items = SmbNasManager.getInstance(this).scanLocalAndUsbStorage();
+            handler.post(() -> {
+                applyAggregatedSubscriptions();
+                if (showToast) {
+                    Toast.makeText(this, "📁 扫描完成，共索引 " + items.size() + " 部 NAS/本地影片", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }).start();
     }
 
     @Override
