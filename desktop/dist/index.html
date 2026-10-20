@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TiviLite 灵动桌面 - Windows / macOS / Linux 极轻播放器</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body, html { width: 100%; height: 100%; background: #0A0D14; color: #FFF; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; }
+
+    /* Custom Desktop Titlebar */
+    #desktopTitlebar {
+      position: absolute; top: 0; left: 0; right: 0; height: 38px;
+      background: rgba(13, 17, 26, 0.95); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px; z-index: 100; -webkit-app-region: drag;
+    }
+    .title-left { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: #E5E7EB; }
+    .title-left span.badge { font-size: 10px; background: rgba(0, 229, 255, 0.15); color: #00E5FF; padding: 2px 6px; border-radius: 4px; font-weight: normal; }
+    .title-controls { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
+    .title-btn {
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #D1D5DB; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;
+    }
+    .title-btn:hover { background: rgba(0, 229, 255, 0.2); color: #00E5FF; border-color: rgba(0, 229, 255, 0.4); }
+    .title-btn.active { background: #00E5FF; color: #0A0D14; }
+
+    /* Player Viewport */
+    #playerViewport { position: absolute; top: 38px; left: 0; right: 0; bottom: 0; background: #000; overflow: hidden; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+
+    /* 4-Grid Multi-Channel Monitoring Grid */
+    #gridContainer {
+      position: absolute; top: 38px; left: 0; right: 0; bottom: 0;
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+      gap: 2px; background: #111; z-index: 5; display: none;
+    }
+    .grid-cell { position: relative; background: #000; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+    .grid-cell.focused { border: 2px solid #00E5FF; }
+    .grid-cell video { width: 100%; height: 100%; object-fit: contain; }
+    .grid-label {
+      position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.7);
+      padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #FFF;
+      pointer-events: none;
+    }
+
+    /* Bottom Desktop OSD */
+    #desktopOsd {
+      position: absolute; bottom: 20px; left: 30px; right: 30px;
+      background: rgba(13, 17, 26, 0.92); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px;
+      padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+      z-index: 40; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    }
+    #desktopOsd.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+
+    .osd-meta { display: flex; align-items: center; gap: 16px; }
+    .osd-num { font-size: 26px; font-weight: 800; color: #00E5FF; font-family: monospace; }
+    .osd-name { font-size: 18px; font-weight: 700; color: #FFF; }
+    .osd-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: #2563EB; }
+    .osd-prog { font-size: 13px; color: #9CA3AF; margin-top: 2px; }
+
+    .osd-shortcuts { font-size: 12px; color: #9CA3AF; text-align: right; line-height: 1.6; }
+    .kbd { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); padding: 1px 6px; border-radius: 4px; color: #00E5FF; font-family: monospace; font-size: 11px; }
+
+    /* Left Channel Drawer */
+    #sidebar {
+      position: absolute; top: 38px; left: 0; bottom: 0; width: 320px;
+      background: rgba(10, 13, 20, 0.96); backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.08); z-index: 50;
+      display: flex; flex-direction: column; transition: transform 0.25s ease;
+      box-shadow: 10px 0 30px rgba(0,0,0,0.6);
+    }
+    #sidebar.hidden { transform: translateX(-100%); }
+
+    .search-box { padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .search-input {
+      width: 100%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px; padding: 8px 12px; color: #FFF; font-size: 13px; outline: none;
+    }
+    .search-input:focus { border-color: #00E5FF; }
+
+    .channel-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .channel-item {
+      padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; transition: background 0.15s; font-size: 13px;
+    }
+    .channel-item:hover { background: rgba(255, 255, 255, 0.06); }
+    .channel-item.active { background: rgba(0, 229, 255, 0.15); border-left: 3px solid #00E5FF; }
+    .channel-item .c-name { font-weight: 600; color: #FFF; }
+    .channel-item .c-num { font-size: 12px; color: #6B7280; font-family: monospace; }
+
+    /* Floating Desktop Toast */
+    #toast {
+      position: absolute; top: 56px; right: 20px; background: rgba(0, 229, 255, 0.95);
+      color: #0A0D14; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 12px;
+      z-index: 200; display: none; box-shadow: 0 4px 16px rgba(0, 229, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom Titlebar -->
+  <div id="desktopTitlebar">
+    <div class="title-left">
+      <span>📺 TiviLite 灵动桌面</span>
+      <span class="badge" id="platformBadge">Desktop v2.0</span>
+    </div>
+    <div class="title-controls">
+      <button class="title-btn" id="btnToggleSidebar" onclick="toggleSidebar()">📑 频道列表 (Tab)</button>
+      <button class="title-btn" id="btnGridMode" onclick="toggleGridMode()">▦ 4宫格同屏 (G)</button>
+      <button class="title-btn" id="btnMiniPip" onclick="toggleMiniPip()">🪟 置顶画中画 (P)</button>
+      <button class="title-btn" id="btnBossKey" onclick="triggerBossKey()">🛡️ 老板键 (H)</button>
+      <button class="title-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ 全屏 (F)</button>
+    </div>
+  </div>
+
+  <!-- Main Single Video Viewport -->
+  <div id="playerViewport">
+    <video id="mainVideo" autoplay playsinline></video>
+  </div>
+
+  <!-- 4-Grid Monitoring Grid View -->
+  <div id="gridContainer">
+    <div class="grid-cell focused" id="cell0" onclick="focusCell(0)">
+      <div class="grid-label">1. CCTV-1 综合 (主声道)</div>
+      <video id="video0" autoplay playsinline muted></video>
+    </div>
+    <div class="grid-cell" id="cell1" onclick="focusCell(1)">
+      <div class="grid-label">2. CCTV-5 体育</div>
+      <video id="video1" autoplay playsinline muted></video>
+    </div>
+    <div class="grid-cell" id="cell2" onclick="focusCell(2)">
+      <div class="grid-label">3. 湖南卫视 高清</div>
+      <video id="video2" autoplay playsinline muted></video>
+    </div>
+    <div class="grid-cell" id="cell3" onclick="focusCell(3)">
+      <div class="grid-label">4. 东方卫视 高清</div>
+      <video id="video3" autoplay playsinline muted></video>
+    </div>
+  </div>
+
+  <!-- Bottom Desktop OSD -->
+  <div id="desktopOsd">
+    <div class="osd-meta">
+      <span class="osd-num" id="osdNum">01</span>
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="osd-name" id="osdName">CCTV-1 综合</span>
+          <span class="osd-badge" id="osdBadge">4K HDR · 硬解</span>
+        </div>
+        <div class="osd-prog" id="osdProg">正在播出：新闻联播 (实时直播)</div>
+      </div>
+    </div>
+    <div class="osd-shortcuts">
+      <div>快捷键：<span class="kbd">空格</span> 播放/暂停 · <span class="kbd">↑/↓</span> 切台 · <span class="kbd">←/→</span> 快进退 · <span class="kbd">滚轮</span> 音量</div>
+      <div>桌面专属：<span class="kbd">P</span> 置顶画中画 · <span class="kbd">H</span> 老板键 · <span class="kbd">G</span> 4宫格监控 · <span class="kbd">F</span> 全屏</div>
+    </div>
+  </div>
+
+  <!-- Left Channel Drawer -->
+  <div id="sidebar" class="hidden">
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜索频道名称或台号 (回车直达)..." oninput="filterChannels()" />
+    </div>
+    <div class="channel-list" id="channelList"></div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast"></div>
+
+  <script>
+    const sampleChannels = [
+      { num: "01", name: "CCTV-1 综合", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "新闻联播" },
+      { num: "02", name: "CCTV-2 财经", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "经济信息联播" },
+      { num: "04", name: "CCTV-4 中文国际", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "中国新闻" },
+      { num: "05", name: "CCTV-5 体育", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "体坛快讯" },
+      { num: "06", name: "CCTV-6 电影", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "国产大片精选" },
+      { num: "08", name: "CCTV-8 电视剧", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "黄金档剧场" },
+      { num: "09", name: "CCTV-9 纪录", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "人与自然" },
+      { num: "13", name: "CCTV-13 新闻", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "共同关注" },
+      { num: "21", name: "湖南卫视 高清", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "快乐大本营精选" },
+      { num: "22", name: "浙江卫视 高清", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "中国好声音" },
+      { num: "23", name: "东方卫视 高清", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "东方新闻" },
+      { num: "24", name: "江苏卫视 高清", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", prog: "非诚勿扰" }
+    ];
+
+    let currentIndex = 0;
+    let hlsInstance = null;
+    let isGridMode = false;
+    let isMiniPip = false;
+    let gridHlsInstances = [];
+    let focusedGrid = 0;
+
+    const mainVideo = document.getElementById("mainVideo");
+
+    function initPlayer(index) {
+      currentIndex = index;
+      const ch = sampleChannels[currentIndex];
+
+      document.getElementById("osdNum").innerText = ch.num;
+      document.getElementById("osdName").innerText = ch.name;
+      document.getElementById("osdProg").innerText = "正在播出：" + ch.prog;
+
+      if (Hls.isSupported()) {
+        if (hlsInstance) hlsInstance.destroy();
+        hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hlsInstance.loadSource(ch.url);
+        hlsInstance.attachMedia(mainVideo);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => mainVideo.play().catch(()=>{}));
+      } else if (mainVideo.canPlayType('application/vnd.apple.mpegurl')) {
+        mainVideo.src = ch.url;
+        mainVideo.play().catch(()=>{});
+      }
+
+      renderChannelList();
+      showOsd();
+      showToast("📺 已切换至 " + ch.name);
+    }
+
+    function renderChannelList(filter = "") {
+      const container = document.getElementById("channelList");
+      container.innerHTML = "";
+      sampleChannels.forEach((c, idx) => {
+        if (filter && !c.name.includes(filter) && !c.num.includes(filter)) return;
+        const div = document.createElement("div");
+        div.className = "channel-item " + (idx === currentIndex ? "active" : "");
+        div.innerHTML = `<span class="c-name">${c.name}</span><span class="c-num">${c.num}</span>`;
+        div.onclick = () => { initPlayer(idx); toggleSidebar(false); };
+        container.appendChild(div);
+      });
+    }
+
+    function filterChannels() {
+      const q = document.getElementById("searchInput").value.trim();
+      renderChannelList(q);
+    }
+
+    function toggleSidebar(forceState) {
+      const sb = document.getElementById("sidebar");
+      const hidden = forceState !== undefined ? !forceState : !sb.classList.contains("hidden");
+      sb.classList.toggle("hidden", hidden);
+      if (!hidden) document.getElementById("searchInput").focus();
+    }
+
+    let osdTimer = null;
+    function showOsd() {
+      const osd = document.getElementById("desktopOsd");
+      osd.classList.remove("hidden");
+      clearTimeout(osdTimer);
+      osdTimer = setTimeout(() => osd.classList.add("hidden"), 3500);
+    }
+
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      t.innerText = text;
+      t.style.display = "block";
+      setTimeout(() => { t.style.display = "none"; }, 2000);
+    }
+
+    // Desktop 特化特性：4宫格多路监控
+    function toggleGridMode() {
+      isGridMode = !isGridMode;
+      const gc = document.getElementById("gridContainer");
+      const pv = document.getElementById("playerViewport");
+      const btn = document.getElementById("btnGridMode");
+
+      if (isGridMode) {
+        gc.style.display = "grid";
+        pv.style.display = "none";
+        btn.classList.add("active");
+        mainVideo.pause();
+
+        for (let i = 0; i < 4; i++) {
+          const v = document.getElementById("video" + i);
+          const ch = sampleChannels[i % sampleChannels.length];
+          const hls = new Hls({ enableWorker: true });
+          hls.loadSource(ch.url);
+          hls.attachMedia(v);
+          v.play().catch(()=>{});
+          gridHlsInstances.push(hls);
+        }
+        focusCell(0);
+        showToast("▦ 已激活 4 宫格同屏多路监控模式");
+      } else {
+        gc.style.display = "none";
+        pv.style.display = "block";
+        btn.classList.remove("active");
+        gridHlsInstances.forEach(h => h.destroy());
+        gridHlsInstances = [];
+        mainVideo.play().catch(()=>{});
+        showToast("📺 已退出宫格模式，恢复单屏播放");
+      }
+    }
+
+    function focusCell(idx) {
+      focusedGrid = idx;
+      for (let i = 0; i < 4; i++) {
+        const cell = document.getElementById("cell" + i);
+        const v = document.getElementById("video" + i);
+        if (i === idx) {
+          cell.classList.add("focused");
+          v.muted = false;
+        } else {
+          cell.classList.remove("focused");
+          v.muted = true;
+        }
+      }
+      showToast("🔊 声音焦点切换至画面 " + (idx + 1));
+    }
+
+    // 置顶迷你画中画 (Mini PiP)
+    function toggleMiniPip() {
+      isMiniPip = !isMiniPip;
+      const btn = document.getElementById("btnMiniPip");
+      btn.classList.toggle("active", isMiniPip);
+
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke("set_mini_pip_mode", { enabled: isMiniPip }).catch(()=>{});
+      }
+      showToast(isMiniPip ? "🪟 已开启桌面置顶画中画迷你窗" : "📺 恢复标准窗口视界");
+    }
+
+    // 老板键 (Boss Key)
+    function triggerBossKey() {
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke("toggle_boss_key").then(visible => {
+          if (!visible) mainVideo.pause();
+          else mainVideo.play().catch(()=>{});
+        }).catch(()=>{});
+      } else {
+        if (mainVideo.paused) {
+          mainVideo.play();
+          showToast("▶️ 恢复播放");
+        } else {
+          mainVideo.pause();
+          showToast("🛡️ 老板键：已静音暂停");
+        }
+      }
+    }
+
+    // 全屏切换
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(()=>{});
+        showToast("⛶ 进入全屏模式 (按 Esc 退出)");
+      } else {
+        document.exitFullscreen().catch(()=>{});
+        showToast("退出全屏模式");
+      }
+    }
+
+    // 键盘快捷键监听
+    window.addEventListener("keydown", (e) => {
+      if (document.activeElement === document.getElementById("searchInput")) {
+        if (e.key === "Escape") toggleSidebar(false);
+        return;
+      }
+
+      switch (e.key) {
+        case " ":
+        case "k":
+        case "K":
+          if (mainVideo.paused) { mainVideo.play(); showToast("▶️ 继续播放"); }
+          else { mainVideo.pause(); showToast("⏸️ 已暂停"); }
+          e.preventDefault();
+          break;
+        case "ArrowUp":
+          if (e.shiftKey) {
+            mainVideo.volume = Math.min(1, mainVideo.volume + 0.1);
+            showToast("🔊 音量: " + Math.round(mainVideo.volume * 100) + "%");
+          } else {
+            currentIndex = (currentIndex - 1 + sampleChannels.length) % sampleChannels.length;
+            initPlayer(currentIndex);
+          }
+          e.preventDefault();
+          break;
+        case "ArrowDown":
+          if (e.shiftKey) {
+            mainVideo.volume = Math.max(0, mainVideo.volume - 0.1);
+            showToast("🔊 音量: " + Math.round(mainVideo.volume * 100) + "%");
+          } else {
+            currentIndex = (currentIndex + 1) % sampleChannels.length;
+            initPlayer(currentIndex);
+          }
+          e.preventDefault();
+          break;
+        case "ArrowLeft":
+          mainVideo.currentTime = Math.max(0, mainVideo.currentTime - 15);
+          showToast("⏪ 快退 15 秒");
+          e.preventDefault();
+          break;
+        case "ArrowRight":
+          mainVideo.currentTime += 15;
+          showToast("⏩ 快进 15 秒");
+          e.preventDefault();
+          break;
+        case "f":
+        case "F":
+        case "F11":
+          toggleFullscreen();
+          e.preventDefault();
+          break;
+        case "p":
+        case "P":
+          toggleMiniPip();
+          e.preventDefault();
+          break;
+        case "h":
+        case "H":
+        case "b":
+        case "B":
+          triggerBossKey();
+          e.preventDefault();
+          break;
+        case "g":
+        case "G":
+          toggleGridMode();
+          e.preventDefault();
+          break;
+        case "m":
+        case "M":
+          mainVideo.muted = !mainVideo.muted;
+          showToast(mainVideo.muted ? "🔇 已静音" : "🔊 恢复声音");
+          e.preventDefault();
+          break;
+        case "Tab":
+          toggleSidebar();
+          e.preventDefault();
+          break;
+      }
+    });
+
+    // 鼠标滚轮调音量
+    window.addEventListener("wheel", (e) => {
+      if (e.deltaY < 0) {
+        mainVideo.volume = Math.min(1, mainVideo.volume + 0.05);
+      } else {
+        mainVideo.volume = Math.max(0, mainVideo.volume - 0.05);
+      }
+      showToast("🔊 音量: " + Math.round(mainVideo.volume * 100) + "%");
+    });
+
+    // 鼠标移动呼出 OSD
+    window.addEventListener("mousemove", () => showOsd());
+
+    // 启动默认频道
+    initPlayer(0);
+  </script>
+</body>
+</html>
