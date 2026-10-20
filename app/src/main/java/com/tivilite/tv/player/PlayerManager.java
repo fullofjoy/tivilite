@@ -44,6 +44,11 @@ public class PlayerManager {
     public static final int BUFFER_MODE_SMOOTH = 1;  // 弱网防抖 (平滑防卡顿)
     public static final int BUFFER_MODE_EXTREME = 2; // 深度抗抖 (抗高延迟弱网)
 
+    public static final int AUDIO_MODE_AUTO = 0;         // 自动自适应 (Auto)
+    public static final int AUDIO_MODE_PASSTHROUGH = 1;  // 源码透传模式 (HDMI eARC / ARC Passthrough)
+    public static final int AUDIO_MODE_PCM = 2;          // 立体声 PCM 降混兼容 (Stereo PCM)
+    public static final int AUDIO_MODE_NIGHT_DRC = 3;    // 夜间人声清晰增强 (Night DRC)
+
     public static class SubtitleTrackInfo {
         public final int groupIndex;
         public final int trackIndex;
@@ -144,6 +149,7 @@ public class PlayerManager {
     private int decoderMode = DECODER_MODE_HARDWARE;
     private int aspectRatioMode = ASPECT_RATIO_FIT;
     private int bufferMode = BUFFER_MODE_FAST;
+    private int audioMode = AUDIO_MODE_AUTO;
     private boolean subtitlesEnabled = false;
     private PlayerView attachedPlayerView;
 
@@ -162,6 +168,8 @@ public class PlayerManager {
                 .getInt("aspect_ratio_mode", ASPECT_RATIO_FIT);
         this.bufferMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
                 .getInt("buffer_mode", BUFFER_MODE_FAST);
+        this.audioMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .getInt("audio_mode", AUDIO_MODE_AUTO);
         this.subtitlesEnabled = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
                 .getBoolean("subtitles_enabled", false);
         initPlayer();
@@ -254,8 +262,14 @@ public class PlayerManager {
         player.setTrackSelectionParameters(
                 player.getTrackSelectionParameters().buildUpon()
                         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
+                        .setMaxAudioChannelCount(audioMode == AUDIO_MODE_PCM || audioMode == AUDIO_MODE_NIGHT_DRC ? 2 : Integer.MAX_VALUE)
                         .build()
         );
+        if (audioMode == AUDIO_MODE_NIGHT_DRC) {
+            player.setVolume(0.85f);
+        } else {
+            player.setVolume(1.0f);
+        }
 
         player.setPlayWhenReady(true);
         player.addListener(new Player.Listener() {
@@ -473,6 +487,79 @@ public class PlayerManager {
             if (t.isSelected) return t.getDisplayName();
         }
         return tracks.isEmpty() ? "标准立体声" : tracks.get(0).getDisplayName();
+    }
+
+    public int getAudioMode() {
+        return audioMode;
+    }
+
+    public void setAudioMode(int mode) {
+        this.audioMode = mode;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit().putInt("audio_mode", mode).apply();
+        if (player != null) {
+            player.setTrackSelectionParameters(
+                    player.getTrackSelectionParameters().buildUpon()
+                            .setMaxAudioChannelCount(mode == AUDIO_MODE_PCM || mode == AUDIO_MODE_NIGHT_DRC ? 2 : Integer.MAX_VALUE)
+                            .build()
+            );
+            player.setVolume(mode == AUDIO_MODE_NIGHT_DRC ? 0.85f : (isPipActive && !isPipAudioMain ? 0.0f : 1.0f));
+        }
+    }
+
+    public String toggleNextAudioMode() {
+        int next = (audioMode + 1) % 4;
+        setAudioMode(next);
+        return getAudioModeText();
+    }
+
+    public String getAudioModeText() {
+        switch (audioMode) {
+            case AUDIO_MODE_PASSTHROUGH:
+                return "源码直通 (HDMI eARC/透传)";
+            case AUDIO_MODE_PCM:
+                return "立体声 PCM (双声道兼容)";
+            case AUDIO_MODE_NIGHT_DRC:
+                return "夜间防吵 (对白增强/限幅)";
+            case AUDIO_MODE_AUTO:
+            default:
+                return "自动直通 (自适应)";
+        }
+    }
+
+    public String getAudioCodecBadge() {
+        if (player == null) return "立体声";
+        Format format = player.getAudioFormat();
+        if (format == null) return "立体声";
+
+        String mime = format.sampleMimeType != null ? format.sampleMimeType.toLowerCase() : "";
+        int channels = format.channelCount;
+
+        if (mime.contains("eac3-joc") || (mime.contains("eac3") && channels >= 8)) {
+            return "DOLBY ATMOS 全景声";
+        } else if (mime.contains("eac3") || mime.contains("ac3")) {
+            return channels >= 6 ? "DOLBY 5.1 环绕声" : "DOLBY DIGITAL 杜比";
+        } else if (mime.contains("dts")) {
+            return channels >= 8 ? "DTS:X 空间环绕" : (channels >= 6 ? "DTS 5.1" : "DTS 双声道");
+        } else if (mime.contains("true-hd") || mime.contains("truehd")) {
+            return "DOLBY TrueHD 无损";
+        } else if (mime.contains("aac") || mime.contains("mp4a")) {
+            return channels >= 6 ? "AAC 5.1 环绕" : "AAC 高清立体声";
+        } else if (channels == 6) {
+            return "5.1 环绕声道";
+        } else if (channels == 2) {
+            return "双声道立体声";
+        } else if (channels == 1) {
+            return "单声道";
+        }
+        return "高清音频";
+    }
+
+    public String getVideoStreamBadge() {
+        if (player == null) return "";
+        Format format = player.getVideoFormat();
+        if (format == null) return "";
+        return PictureQualityManager.getInstance(context).getHdrAndResolutionBadge(format);
     }
 
     public List<SubtitleTrackInfo> getSubtitleTracks() {
@@ -774,7 +861,8 @@ public class PlayerManager {
     private void playUrlInternal(String url) {
         if (callback != null) callback.onLoading(true);
 
-        MediaItem mediaItem = MediaItem.fromUri(Uri.parse(url));
+        String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(url, 8888);
+        MediaItem mediaItem = MediaItem.fromUri(Uri.parse(playable));
         player.setMediaItem(mediaItem);
         player.prepare();
         player.play();
@@ -855,7 +943,8 @@ public class PlayerManager {
             player.setVolume(isPipAudioMain ? 1.0f : 0.0f);
         }
 
-        MediaItem item = MediaItem.fromUri(channel.getUrl());
+        String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(channel.getUrl(), 8888);
+        MediaItem item = MediaItem.fromUri(playable);
         pipPlayer.setMediaItem(item);
         pipPlayer.prepare();
         pipPlayer.setPlayWhenReady(true);

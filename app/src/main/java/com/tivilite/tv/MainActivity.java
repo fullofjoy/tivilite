@@ -43,6 +43,10 @@ import com.tivilite.tv.ai.AiRecommendationManager;
 import com.tivilite.tv.data.SmartChannelMatcher;
 import com.tivilite.tv.data.SubscriptionManager;
 import com.tivilite.tv.epg.EpgManager;
+import com.tivilite.tv.epg.ReminderManager;
+import com.tivilite.tv.player.LanMulticastManager;
+import com.tivilite.tv.player.PictureQualityManager;
+import com.tivilite.tv.ui.RemindersAdapter;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import com.tivilite.tv.ui.AiRecommendationsAdapter;
@@ -132,6 +136,34 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnCloseAiDialog;
     private android.widget.Button btnAiRecommendations;
     private AiRecommendationsAdapter aiRecommendationsAdapter;
+
+    // Phase 7: Audio Passthrough & Picture Quality
+    private android.widget.Button btnToggleAudioMode;
+    private android.widget.Button btnTogglePictureMode;
+    private android.widget.Button btnViewReminders;
+    private TextView osdAudioBadge;
+    private TextView osdPictureBadge;
+
+    // Phase 7: Reminder HUD & Dialog
+    private CardView reminderHudBanner;
+    private TextView reminderHudText;
+    private CardView dialogReminders;
+    private RecyclerView remindersRecyclerView;
+    private TextView remindersEmptyText;
+    private android.widget.Button btnCloseRemindersDialog;
+    private RemindersAdapter remindersAdapter;
+    private ReminderManager.ReminderItem currentAlertReminder;
+    private final Runnable hideReminderHudRunnable = () -> {
+        if (reminderHudBanner != null) reminderHudBanner.setVisibility(View.GONE);
+        currentAlertReminder = null;
+    };
+    private final Runnable reminderCheckerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            checkUpcomingReminders();
+            handler.postDelayed(this, 15000);
+        }
+    };
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -299,6 +331,8 @@ public class MainActivity extends AppCompatActivity {
         osdAudio = findViewById(R.id.osdAudio);
         osdSubtitle = findViewById(R.id.osdSubtitle);
         osdRecordBadge = findViewById(R.id.osdRecordBadge);
+        osdAudioBadge = findViewById(R.id.osdAudioBadge);
+        osdPictureBadge = findViewById(R.id.osdPictureBadge);
 
         miniDrawerPreview = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("mini_drawer_preview", true);
 
@@ -311,6 +345,19 @@ public class MainActivity extends AppCompatActivity {
                 updateAspectRatioButtonText();
                 if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
                 Toast.makeText(this, "📐 已切换画面比例: " + mode, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnTogglePictureMode = findViewById(R.id.btnTogglePictureMode);
+        if (btnTogglePictureMode != null) {
+            updatePictureModeButtonText();
+            btnTogglePictureMode.setOnClickListener(v -> {
+                PictureQualityManager.getInstance(this).cycleNextMode(playerView);
+                updatePictureModeButtonText();
+                if (playerManager != null && playerManager.getCurrentChannel() != null) {
+                    updateOsd(playerManager.getCurrentChannel());
+                }
+                Toast.makeText(this, "🎛️ 图像画质已切换至: " + PictureQualityManager.getInstance(this).getModeName(), Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -327,6 +374,18 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Toast.makeText(this, "当前视频流仅有 1 组默认音轨", Toast.LENGTH_SHORT).show();
                 }
+            });
+        }
+
+        btnToggleAudioMode = findViewById(R.id.btnToggleAudioMode);
+        if (btnToggleAudioMode != null) {
+            updateAudioModeButtonText();
+            btnToggleAudioMode.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                String am = playerManager.toggleNextAudioMode();
+                updateAudioModeButtonText();
+                if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                Toast.makeText(this, "🔊 音频模式: " + am, Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -412,6 +471,29 @@ public class MainActivity extends AppCompatActivity {
             btnAiRecommendations.setOnClickListener(v -> showAiRecommendationsDialog());
         }
 
+        // Phase 7: Reminders List Button & Dialogs
+        btnViewReminders = findViewById(R.id.btnViewReminders);
+        if (btnViewReminders != null) {
+            updateRemindersButtonText();
+            btnViewReminders.setOnClickListener(v -> showRemindersDialog());
+        }
+
+        reminderHudBanner = findViewById(R.id.reminderHudBanner);
+        reminderHudText = findViewById(R.id.reminderHudText);
+        dialogReminders = findViewById(R.id.dialogReminders);
+        remindersRecyclerView = findViewById(R.id.remindersRecyclerView);
+        remindersEmptyText = findViewById(R.id.remindersEmptyText);
+        btnCloseRemindersDialog = findViewById(R.id.btnCloseRemindersDialog);
+        if (btnCloseRemindersDialog != null) {
+            btnCloseRemindersDialog.setOnClickListener(v -> {
+                if (dialogReminders != null) dialogReminders.setVisibility(View.GONE);
+            });
+        }
+
+        if (playerView != null) {
+            PictureQualityManager.getInstance(this).applyModeToView(playerView);
+        }
+
         // Phase 6: Voice HUD
         voiceHudBanner = findViewById(R.id.voiceHudBanner);
         voiceHudText = findViewById(R.id.voiceHudText);
@@ -473,6 +555,14 @@ public class MainActivity extends AppCompatActivity {
         epgAdapter = new EpgAdapter(program -> {
             Channel ch = playerManager.getCurrentChannel();
             if (ch != null) {
+                long now = System.currentTimeMillis();
+                if (program.getStartTime() > now) {
+                    boolean added = ReminderManager.getInstance(this).toggleReminder(ch.getName(), ch.getUrl(), program);
+                    Toast.makeText(this, added ? ("⏰ 已预约提醒：" + program.getTitle() + "\n开播前大屏将弹窗提醒您切换") : ("已取消预约：" + program.getTitle()), Toast.LENGTH_SHORT).show();
+                    epgAdapter.notifyDataSetChanged();
+                    updateRemindersButtonText();
+                    return;
+                }
                 if (program.isCatchup() && !com.tivilite.tv.license.LicenseManager.isPro(this)) {
                     showProDialog();
                     return;
@@ -705,6 +795,24 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "💬 " + subDesc, Toast.LENGTH_SHORT).show();
                 }
                 break;
+            case PICTURE_MODE:
+                PictureQualityManager.getInstance(this).cycleNextMode(playerView);
+                updatePictureModeButtonText();
+                if (playerManager != null && playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                break;
+            case AUDIO_MODE:
+                if (playerManager != null) {
+                    playerManager.toggleNextAudioMode();
+                    updateAudioModeButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                }
+                break;
+            case SHOW_REMINDERS:
+                showRemindersDialog();
+                break;
+            case SHOW_RECOMMENDATIONS:
+                showAiRecommendationsDialog();
+                break;
             case FAILOVER:
                 if (playerManager != null) playerManager.switchToBestSource();
                 break;
@@ -743,6 +851,100 @@ public class MainActivity extends AppCompatActivity {
         }
         dialogAiRecommendations.setVisibility(View.VISIBLE);
         if (aiRecyclerView != null) aiRecyclerView.requestFocus();
+    }
+
+    private void showRemindersDialog() {
+        if (dialogReminders == null) return;
+        if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+        List<ReminderManager.ReminderItem> reminders = ReminderManager.getInstance(this).getAllReminders();
+        if (reminders.isEmpty()) {
+            if (remindersEmptyText != null) remindersEmptyText.setVisibility(View.VISIBLE);
+            if (remindersRecyclerView != null) remindersRecyclerView.setVisibility(View.GONE);
+        } else {
+            if (remindersEmptyText != null) remindersEmptyText.setVisibility(View.GONE);
+            if (remindersRecyclerView != null) {
+                remindersRecyclerView.setVisibility(View.VISIBLE);
+                if (remindersAdapter == null) {
+                    remindersAdapter = new RemindersAdapter(new RemindersAdapter.OnReminderActionListener() {
+                        @Override
+                        public void onReminderSelect(ReminderManager.ReminderItem item) {
+                            dialogReminders.setVisibility(View.GONE);
+                            switchToReminderChannel(item);
+                        }
+
+                        @Override
+                        public void onReminderCancel(ReminderManager.ReminderItem item) {
+                            ReminderManager.getInstance(MainActivity.this).removeReminderById(item.id);
+                            showRemindersDialog();
+                            updateRemindersButtonText();
+                            if (epgAdapter != null) epgAdapter.notifyDataSetChanged();
+                            Toast.makeText(MainActivity.this, "已取消预约: " + item.programTitle, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    remindersRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+                    remindersRecyclerView.setAdapter(remindersAdapter);
+                }
+                remindersAdapter.setItems(reminders);
+            }
+        }
+        dialogReminders.setVisibility(View.VISIBLE);
+        if (btnCloseRemindersDialog != null) btnCloseRemindersDialog.requestFocus();
+    }
+
+    private void checkUpcomingReminders() {
+        List<ReminderManager.ReminderItem> alerts = ReminderManager.getInstance(this).pollPendingAlerts();
+        if (alerts != null && !alerts.isEmpty()) {
+            ReminderManager.ReminderItem alert = alerts.get(0);
+            currentAlertReminder = alert;
+            if (reminderHudBanner != null && reminderHudText != null) {
+                reminderHudText.setText("【预约开播】[" + alert.channelName + "] 《" + alert.programTitle + "》 即将开播！ 按 [OK] 立即收看");
+                reminderHudBanner.setVisibility(View.VISIBLE);
+                handler.removeCallbacks(hideReminderHudRunnable);
+                handler.postDelayed(hideReminderHudRunnable, 15000);
+            }
+        }
+    }
+
+    private void switchToReminderChannel(ReminderManager.ReminderItem item) {
+        if (item == null) return;
+        Channel target = null;
+        if (allChannels != null) {
+            String clean = SmartChannelMatcher.cleanKey(item.channelName);
+            for (Channel c : allChannels) {
+                if (SmartChannelMatcher.cleanKey(c.getName()).equals(clean) || c.getName().equalsIgnoreCase(item.channelName)) {
+                    target = c;
+                    break;
+                }
+            }
+        }
+        if (target != null) {
+            playSelectedChannel(target);
+            Toast.makeText(this, "📺 已为您切至预约频道: " + target.getName(), Toast.LENGTH_SHORT).show();
+        } else if (item.channelUrl != null && !item.channelUrl.isEmpty()) {
+            Channel ch = new Channel(item.channelName, item.channelUrl, "预约频道", 999, "");
+            playSelectedChannel(ch);
+        } else {
+            Toast.makeText(this, "未在当前播放列表中找到频道: " + item.channelName, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updatePictureModeButtonText() {
+        if (btnTogglePictureMode != null) {
+            btnTogglePictureMode.setText("🎛️ 图像画质模式: " + PictureQualityManager.getInstance(this).getModeName() + " - 点击切换");
+        }
+    }
+
+    private void updateAudioModeButtonText() {
+        if (btnToggleAudioMode != null && playerManager != null) {
+            btnToggleAudioMode.setText("🔊 音频源码直通: " + playerManager.getAudioModeText() + " - 点击切换");
+        }
+    }
+
+    private void updateRemindersButtonText() {
+        if (btnViewReminders != null) {
+            int count = ReminderManager.getInstance(this).getUpcomingCount();
+            btnViewReminders.setText("📅 节目预约管家: " + count + " 个待播节目 - 点击查看");
+        }
     }
 
     private void toggleLiveRecording() {
@@ -1531,6 +1733,50 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
+
+            @Override
+            public void onAudioModeToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    String am = playerManager.toggleNextAudioMode();
+                    updateAudioModeButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    Toast.makeText(MainActivity.this, "🔊 音频直通: " + am, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPictureModeToggled() {
+                handler.post(() -> {
+                    PictureQualityManager.getInstance(MainActivity.this).cycleNextMode(playerView);
+                    updatePictureModeButtonText();
+                    if (playerManager != null && playerManager.getCurrentChannel() != null) {
+                        updateOsd(playerManager.getCurrentChannel());
+                    }
+                    Toast.makeText(MainActivity.this, "🎛️ 图像画质模式: " + PictureQualityManager.getInstance(MainActivity.this).getModeName(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onAudioModeChanged(int mode) {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    playerManager.setAudioMode(mode);
+                    updateAudioModeButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                });
+            }
+
+            @Override
+            public void onPictureModeChanged(int mode) {
+                handler.post(() -> {
+                    PictureQualityManager.getInstance(MainActivity.this).setMode(mode, playerView);
+                    updatePictureModeButtonText();
+                    if (playerManager != null && playerManager.getCurrentChannel() != null) {
+                        updateOsd(playerManager.getCurrentChannel());
+                    }
+                });
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -1563,6 +1809,13 @@ public class MainActivity extends AppCompatActivity {
                     json.put("is_recording", RecordingManager.getInstance().isRecording());
                     json.put("subtitle_desc", playerManager != null ? playerManager.getCurrentSubtitleDesc() : "关");
                     json.put("buffer_mode", playerManager != null ? playerManager.getBufferModeText() : "极速秒开");
+                    json.put("audio_mode", playerManager != null ? playerManager.getAudioMode() : 0);
+                    json.put("audio_mode_text", playerManager != null ? playerManager.getAudioModeText() : "自动直通");
+                    json.put("audio_codec_badge", playerManager != null ? playerManager.getAudioCodecBadge() : "立体声");
+                    json.put("picture_mode", PictureQualityManager.getInstance(MainActivity.this).getCurrentMode());
+                    json.put("picture_mode_text", PictureQualityManager.getInstance(MainActivity.this).getModeName());
+                    json.put("video_spec_badge", playerManager != null ? playerManager.getVideoStreamBadge() : "");
+                    json.put("reminders_count", ReminderManager.getInstance(MainActivity.this).getUpcomingCount());
                     json.put("webdav_last_sync", WebDavClient.getFormattedLastSyncTime(MainActivity.this));
                     json.put("total_channels", allChannels != null ? allChannels.size() : 0);
                     json.put("device_id", com.tivilite.tv.license.LicenseManager.getDeviceId(MainActivity.this));
@@ -1587,6 +1840,8 @@ public class MainActivity extends AppCompatActivity {
                             obj.put("has_catchup", ch.hasCatchup());
                             obj.put("is_fav", com.tivilite.tv.favorite.FavoriteManager.isFavorite(MainActivity.this, ch.getName()));
                             obj.put("sources", ch.getUrlCount());
+                            obj.put("relay_url", LanMulticastManager.getInstance(MainActivity.this).generateLanRelayUrl(
+                                    WebPushServer.getLocalIpAddress(), 8888, ch.getUrl()));
                             arr.put(obj);
                         } catch (Exception ignored) {}
                     }
@@ -1720,6 +1975,16 @@ public class MainActivity extends AppCompatActivity {
         if (osdRecordBadge != null) {
             osdRecordBadge.setVisibility(RecordingManager.getInstance().isRecording() ? View.VISIBLE : View.GONE);
         }
+        if (osdAudioBadge != null && playerManager != null) {
+            osdAudioBadge.setText(playerManager.getAudioCodecBadge());
+            osdAudioBadge.setVisibility(View.VISIBLE);
+        }
+        if (osdPictureBadge != null && playerManager != null) {
+            String spec = playerManager.getVideoStreamBadge();
+            String pMode = PictureQualityManager.getInstance(this).getModeName();
+            osdPictureBadge.setText(!spec.isEmpty() ? (spec + " · " + pMode) : pMode);
+            osdPictureBadge.setVisibility(View.VISIBLE);
+        }
 
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
             Glide.with(this).load(channel.getLogoUrl()).placeholder(R.drawable.app_banner).into(osdLogo);
@@ -1745,6 +2010,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void populateEpgTimeline(Channel channel) {
         if (channel == null) return;
+        epgTitle.setText(channel.getName());
+        epgSubtitle.setText(channel.hasCatchup() ? "7天时移回看 · 点击未来节目可预约" : "实时节目单 · 点击未来节目可预约");
+        if (epgAdapter != null) epgAdapter.setChannelName(channel.getName());
         EpgManager.getInstance().loadEpgForChannel(this, channel, (name, currentProgram, fullSchedule) -> {
             if (fullSchedule != null && !fullSchedule.isEmpty()) {
                 epgAdapter.setPrograms(fullSchedule);
@@ -1757,6 +2025,39 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // 0. Reminders Dialog Remote Navigation
+        if (dialogReminders != null && dialogReminders.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    dialogReminders.setVisibility(View.GONE);
+                }
+                return true;
+            }
+            return super.dispatchKeyEvent(event);
+        }
+
+        // 0. Reminder Alert HUD (Press OK to immediately switch to reserved channel)
+        if (reminderHudBanner != null && reminderHudBanner.getVisibility() == View.VISIBLE) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    reminderHudBanner.setVisibility(View.GONE);
+                    handler.removeCallbacks(hideReminderHudRunnable);
+                    switchToReminderChannel(currentAlertReminder);
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    reminderHudBanner.setVisibility(View.GONE);
+                    handler.removeCallbacks(hideReminderHudRunnable);
+                    currentAlertReminder = null;
+                }
+                return true;
+            }
+        }
+
         // 0. AI Recommendations Dialog Remote Navigation
         if (dialogAiRecommendations != null && dialogAiRecommendations.getVisibility() == View.VISIBLE) {
             int keyCode = event.getKeyCode();
@@ -2065,7 +2366,10 @@ public class MainActivity extends AppCompatActivity {
             }
             updateDirectionButtonText();
             updateAspectRatioButtonText();
+            updatePictureModeButtonText();
             updateAudioTrackButtonText();
+            updateAudioModeButtonText();
+            updateRemindersButtonText();
             updateMiniDrawerButtonText();
             updateAutoBootButtonText();
             updateDecoderButtonText();
@@ -2187,6 +2491,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void saveAndApplyM3U(String content) {
         saveAndApplySubscription("手动导入", "", content, false);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        handler.removeCallbacks(reminderCheckerRunnable);
+        handler.post(reminderCheckerRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(reminderCheckerRunnable);
     }
 
     @Override

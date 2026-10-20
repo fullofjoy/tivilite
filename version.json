@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "version_code": 14,
-  "release_notes": "1. 🖼️ 画中画与双流同屏监看 (Multi-View PiP，体育赛事/晚会两台同屏解码，主副画面秒级对调与音频焦点自由切换)\n2. 🤖 AI 智能节目看点摘要与实时热播推荐 (AI Highlights，动态分析黄金档焦点赛事与影视大剧，高光提要一键直达)\n3. 🎨 频道台标与智能 EPG 模糊匹配补齐引擎 (Smart Matcher，智能过滤分辨率/运营商杂散后缀，全自动补全高清台标与节目单)\n4. 🎙️ 蓝牙遥控器语音唤醒换台与搜索 (Voice Command HUD，顶部浮层动态交互，手机端支持麦克风自然语言换台)\n5. 📱 手机 Web 虚拟遥控与大屏全功能互联升级 (支持频道小窗一键点播、自然语言快捷指令与 AI 热播看板)",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.4.0/TiviLite-v1.4.0.apk"
+  "version": "1.5.0",
+  "version_code": 15,
+  "release_notes": "1. 🔊 音频源码直通与家庭影院空间音效 (HDMI eARC/ARC Passthrough，支持 Dolby Atmos / AC3 / DTS:X 直通功放，搭载夜间对白防吵 DRC 模式)\n2. 🎛️ 图像画质引擎与大屏色彩自适应 (Picture Quality Engine，标准/影院胶片/鲜艳通透/体育赛事四档调色矩阵，实时探测 4K UHD 60FPS / HDR10 / HLG 高规格流)\n3. ⚡ 局域网电信/联通/移动 IPTV 组播直解与同屏中继 (Lan Multicast & Mesh Relay，内置 RTP/UDP 12 字节剥离，支持卧室电视与移动设备直连中继播放)\n4. 📅 EPG 节目预约追剧与开播弹窗提醒 (Program Reminder，节目单与 AI 看点一键预约，开播前 90 秒大屏专属 HUD 浮层提醒，[OK] 键秒级直达)\n5. 📱 手机 Web 虚拟遥控与配源中心全维升级 (新增预约管家、局域网中继流一键复制与画质/源码直通快捷控制)",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.5.0/TiviLite-v1.5.0.apk"
 }

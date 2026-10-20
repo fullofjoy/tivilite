@@ -273,6 +273,38 @@
             app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
 
         <TextView
+            android:id="@+id/osdAudioBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="#2600E5FF"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="DOLBY 5.1"
+            android:textColor="#00E5FF"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdRecordBadge"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
+            android:id="@+id/osdPictureBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="#26FFB300"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="标准原画"
+            android:textColor="#FFB300"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="@+id/osdChannelName"
+            app:layout_constraintStart_toEndOf="@+id/osdAudioBadge"
+            app:layout_constraintTop_toTopOf="@+id/osdChannelName" />
+
+        <TextView
             android:id="@+id/osdProgram"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -393,8 +425,24 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnViewProDetails"
-                        android:nextFocusDown="@+id/btnToggleAudioTrack"
+                        android:nextFocusDown="@+id/btnTogglePictureMode"
                         android:text="📐 画面比例: 自适应 (FIT) - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 7: Picture Mode Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnTogglePictureMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAspectRatio"
+                        android:nextFocusDown="@+id/btnToggleAudioTrack"
+                        android:text="🎛️ 图像画质模式: 标准原画 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -408,9 +456,25 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnToggleAspectRatio"
-                        android:nextFocusDown="@+id/btnToggleSubtitle"
+                        android:nextFocusUp="@+id/btnTogglePictureMode"
+                        android:nextFocusDown="@+id/btnToggleAudioMode"
                         android:text="🔊 音轨/声道: 标准立体声 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 7: Audio Passthrough Mode Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleAudioMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnToggleAudioTrack"
+                        android:nextFocusDown="@+id/btnToggleSubtitle"
+                        android:text="🔊 音频直通/家庭影院: 自动直通 - 点击切换"
                         android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
@@ -553,9 +617,25 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnSwapPip"
-                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:nextFocusDown="@+id/btnViewReminders"
                         android:text="🤖 AI 实时热播看点榜 (黄金档速览)"
                         android:textColor="@color/tv_accent"
+                        android:textSize="12sp" />
+
+                    <!-- Phase 7: Reminders List Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnViewReminders"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnAiRecommendations"
+                        android:nextFocusDown="@+id/btnSwitchBestSource"
+                        android:text="📅 节目预约管家: 0 个待播"
+                        android:textColor="@color/tv_text_primary"
                         android:textSize="12sp" />
 
                     <!-- Best Source Benchmark Button -->
@@ -568,7 +648,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnAiRecommendations"
+                        android:nextFocusUp="@+id/btnViewReminders"
                         android:nextFocusDown="@+id/btnWebDavSync"
                         android:text="⚡ 自动测速并优选最佳线路"
                         android:textColor="@color/tv_text_primary"
@@ -1255,6 +1335,118 @@
                 android:background="@drawable/selector_tv_button"
                 android:focusable="true"
                 android:text="❌ 关闭看点榜 (返回播放)"
+                android:textColor="@color/tv_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 7: Program Reminder Alert HUD Banner -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/reminderHudBanner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="36dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#F0151820"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="16dp"
+        app:cardStrokeColor="#00E5FF"
+        app:cardStrokeWidth="2dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⏰ "
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/reminderHudText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="【节目开播提醒】即将开播！ 按 [OK] 立即收看"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:background="#3300E5FF"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="按 OK 直达"
+                android:textColor="#00E5FF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Phase 7: Reminders List Dialog -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/dialogReminders"
+        android:layout_width="680dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:cardBackgroundColor="#F014161E"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="20dp"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📅 节目预约管家 (开播前大屏自动提醒)"
+                android:textColor="@color/tv_accent"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/remindersEmptyText"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:gravity="center"
+                android:text="暂无预约节目\n可在 EPG 节目流或 AI 看点榜中点击未来节目一键预约"
+                android:textColor="@color/tv_text_dim"
+                android:textSize="13sp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/remindersRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnCloseRemindersDialog"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="10dp"
+                app:backgroundTint="@null"
+                android:background="@drawable/selector_tv_button"
+                android:focusable="true"
+                android:text="❌ 返回播放"
                 android:textColor="@color/tv_text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>

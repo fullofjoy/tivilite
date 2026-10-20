@@ -3,6 +3,8 @@ package com.tivilite.tv.server;
 import android.content.Context;
 import com.tivilite.tv.ai.AiRecommendationManager;
 import com.tivilite.tv.data.SubscriptionManager;
+import com.tivilite.tv.epg.ReminderManager;
+import com.tivilite.tv.player.LanMulticastManager;
 import com.tivilite.tv.record.RecordingManager;
 import com.tivilite.tv.sync.WebDavClient;
 import java.io.ByteArrayOutputStream;
@@ -51,6 +53,12 @@ public class WebPushServer {
         void onPipAudioToggled();
         void onVoiceCommandReceived(String command);
         void onPipChannelPlayRequested(int index, String name, int number);
+
+        // Phase 7
+        void onAudioModeToggled();
+        void onPictureModeToggled();
+        void onAudioModeChanged(int mode);
+        void onPictureModeChanged(int mode);
     }
 
     public interface StatusProvider {
@@ -152,7 +160,18 @@ public class WebPushServer {
                 }
 
                 if (firstLine.startsWith("GET")) {
-                    if (firstLine.contains("/api/recordings/download") && context != null) {
+                    if (firstLine.contains("/live/multicast") || firstLine.contains("/stream/relay")) {
+                        handleMulticastOrRelayStream(firstLine, out);
+                        return;
+                    } else if (firstLine.contains("/api/reminders") && context != null) {
+                        List<ReminderManager.ReminderItem> list = ReminderManager.getInstance(context).getAllReminders();
+                        JSONArray arr = new JSONArray();
+                        for (ReminderManager.ReminderItem r : list) {
+                            JSONObject j = r.toJson();
+                            if (j != null) arr.put(j);
+                        }
+                        serveJsonResponse(out, arr.toString());
+                    } else if (firstLine.contains("/api/recordings/download") && context != null) {
                         handleFileDownload(firstLine, out);
                         return;
                     } else if (firstLine.contains("/api/recordings") && context != null) {
@@ -235,6 +254,37 @@ public class WebPushServer {
             out.flush();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void handleMulticastOrRelayStream(String requestLine, OutputStream out) {
+        try {
+            int qIdx = requestLine.indexOf("?");
+            if (qIdx < 0) return;
+            String query = requestLine.substring(qIdx + 1).split(" ")[0];
+            String targetUrl = "";
+            for (String part : query.split("&")) {
+                int eq = part.indexOf("=");
+                if (eq > 0 && "url".equals(part.substring(0, eq))) {
+                    targetUrl = URLDecoder.decode(part.substring(eq + 1), "UTF-8");
+                    break;
+                }
+            }
+            if (targetUrl.isEmpty()) return;
+
+            String header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: video/mp2t\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n";
+            out.write(header.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            if (LanMulticastManager.isMulticastUrl(targetUrl)) {
+                LanMulticastManager.getInstance(context).streamMulticastToClient(targetUrl, out);
+            } else {
+                LanMulticastManager.getInstance(context).streamHttpRelayToClient(targetUrl, out);
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -370,6 +420,46 @@ public class WebPushServer {
                 if (obj.has("toggle_pip_audio")) {
                     listener.onPipAudioToggled();
                     return null;
+                }
+
+                // Phase 7: Audio Passthrough & Picture Quality Modes
+                if (obj.has("toggle_audio_mode")) {
+                    listener.onAudioModeToggled();
+                    return null;
+                }
+                if (obj.has("toggle_picture_mode")) {
+                    listener.onPictureModeToggled();
+                    return null;
+                }
+                if (obj.has("set_audio_mode")) {
+                    int mode = obj.optInt("set_audio_mode", 0);
+                    listener.onAudioModeChanged(mode);
+                    return null;
+                }
+                if (obj.has("set_picture_mode")) {
+                    int mode = obj.optInt("set_picture_mode", 0);
+                    listener.onPictureModeChanged(mode);
+                    return null;
+                }
+
+                // Phase 7: EPG Program Reminders
+                if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
+                    String ch = obj.optString("channel_name");
+                    String prog = obj.optString("program_title");
+                    long st = obj.optLong("start_time");
+                    long et = obj.optLong("end_time");
+                    String url = obj.optString("channel_url", "");
+                    if (context != null && !ch.isEmpty() && !prog.isEmpty()) {
+                        ReminderManager.getInstance(context).addReminder(ch, url, prog, st, et);
+                        return "{\"success\":true,\"message\":\"已成功预约: " + prog + "\"}";
+                    }
+                }
+                if (requestLine.contains("/api/reminders/delete") || obj.has("delete_reminder_id")) {
+                    String id = obj.optString("delete_reminder_id", obj.optString("id", ""));
+                    if (context != null && !id.isEmpty()) {
+                        ReminderManager.getInstance(context).removeReminderById(id);
+                        return "{\"success\":true,\"message\":\"已取消预约\"}";
+                    }
                 }
 
                 // DVR Recordings Deletion
@@ -603,6 +693,7 @@ public class WebPushServer {
           .append("<div class='nav-tabs'>")
           .append("<div class='nav-tab active' onclick='showTab(\"remote\")'>📱 遥控</div>")
           .append("<div class='nav-tab' onclick='showTab(\"ai\")'>🤖 看点</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"reminders\")'>📅 预约</div>")
           .append("<div class='nav-tab' onclick='showTab(\"status\")'>📺 播放</div>")
           .append("<div class='nav-tab' onclick='showTab(\"channels\")'>📑 频道</div>")
           .append("<div class='nav-tab' onclick='showTab(\"recordings\")'>🔴 录制</div>")
@@ -654,6 +745,14 @@ public class WebPushServer {
           .append("<button class='key-btn' onclick='postData({swap_pip:true})'><span>🔄</span><span>主副对调</span></button>")
           .append("<button class='key-btn' onclick='postData({toggle_pip_audio:true})'><span>🔊</span><span>副音切换</span></button>")
           .append("<button class='key-btn' style='background:rgba(0,229,255,0.15);color:var(--accent);' onclick='showTab(\"ai\")'><span>🤖</span><span>AI看点</span></button>")
+          .append("</div>")
+
+          // Phase 7: Audio Passthrough & Picture Quality
+          .append("<div class='keys-grid'>")
+          .append("<button class='key-btn' onclick='postData({toggle_audio_mode:true})'><span>🔊</span><span id='rmAudioModeBtn'>源码直通</span></button>")
+          .append("<button class='key-btn' onclick='postData({toggle_picture_mode:true})'><span>🎛️</span><span id='rmPictureModeBtn'>画质引擎</span></button>")
+          .append("<button class='key-btn' style='background:rgba(0,229,255,0.15);color:var(--accent);' onclick='showTab(\"reminders\")'><span>📅</span><span id='rmRemindersBadge'>0 个预约</span></button>")
+          .append("<button class='key-btn' onclick='postData({best_source:true})'><span>⚡</span><span>智能测速</span></button>")
           .append("</div>")
 
           // Voice Command Input
@@ -708,6 +807,24 @@ public class WebPushServer {
           .append("<div class='card-title'><span>🤖 AI 实时热播看点榜</span><button class='sub-btn btn-del' onclick='fetchAiRecommendations()'>刷新</button></div>")
           .append("<p style='color:var(--muted);font-size:12px;margin-bottom:10px;'>实时提炼全国主要电视台黄金档看点摘要与热度指数，点击手机即刻转台：</p>")
           .append("<div id='aiListContainer'><p style='color:var(--muted);font-size:12px;'>正在加载看点推荐...</p></div>")
+          .append("</div></div>");
+
+        // Panel Reminders: Upcoming EPG alerts
+        sb.append("<div id='tab-reminders' class='tab-panel'>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>📅 节目预约管家</span><button class='sub-btn btn-del' onclick='fetchReminders()'>刷新</button></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:10px;'>开播前 90 秒大屏高亮弹窗提醒，遥控按 [OK] 立即收看：</p>")
+          .append("<div id='remListContainer'><p style='color:var(--muted);font-size:12px;'>正在加载预约列表...</p></div>")
+          .append("</div>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>➕ 快速新增预约</span></div>")
+          .append("<label>电视台名称：</label>")
+          .append("<input type='text' id='remChName' placeholder='如：CCTV-5 体育' />")
+          .append("<label>节目看点名称：</label>")
+          .append("<input type='text' id='remProgTitle' placeholder='如：2026欧冠半决赛' />")
+          .append("<label>预约时间 (今天/明天 HH:mm)：</label>")
+          .append("<input type='text' id='remTime' placeholder='例如：19:35 或 20:00' />")
+          .append("<button class='btn-primary' style='background:#00E5FF;color:#000;' onclick='addCustomReminder()'>⏰ 立即预约该节目</button>")
           .append("</div></div>");
 
         // Panel 2: Now Playing & Live Status
@@ -963,6 +1080,9 @@ public class WebPushServer {
           .append("      document.getElementById('stDecoderInfo').innerText = s.decoder_mode || '硬件加速';")
           .append("      document.getElementById('stModeBadge').innerText = s.is_catchup_mode ? '7天时移回看' : '实时直播';")
           .append("    }")
+          .append("    if(s.audio_mode_text && document.getElementById('rmAudioModeBtn')) document.getElementById('rmAudioModeBtn').innerText = s.audio_mode_text;")
+          .append("    if(s.picture_mode_text && document.getElementById('rmPictureModeBtn')) document.getElementById('rmPictureModeBtn').innerText = s.picture_mode_text;")
+          .append("    if(document.getElementById('rmRemindersBadge')) document.getElementById('rmRemindersBadge').innerText = (s.reminders_count || 0) + ' 个预约';")
           .append("    if(s.device_id) {")
           .append("      document.getElementById('stDeviceId').innerText = s.device_id;")
           .append("      document.getElementById('setDevId').innerText = s.device_id;")
@@ -1101,6 +1221,41 @@ public class WebPushServer {
           .append("    });")
           .append("    box.innerHTML = html;")
           .append("  }).catch(function(){});")
+          .append("}")
+          .append("function fetchReminders() {")
+          .append("  fetch('/api/reminders').then(function(r){return r.json();}).then(function(list){")
+          .append("    var box = document.getElementById('remListContainer');")
+          .append("    if(!list || list.length === 0) { box.innerHTML = '<p style=\"color:var(--muted);font-size:12px;text-align:center;padding:16px;\">暂无预约节目</p>'; return; }")
+          .append("    var html = '';")
+          .append("    list.forEach(function(r){")
+          .append("      var timeStr = new Date(r.startTime).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});")
+          .append("      html += '<div class=\"sub-item\"><div><strong>' + r.channelName + '</strong>'")
+          .append("        + '<div style=\"color:var(--accent);font-size:13px;font-weight:bold;\">《' + r.programTitle + '》</div>'")
+          .append("        + '<div style=\"color:var(--muted);font-size:11px;\">开播时间: ' + timeStr + (r.reminded ? ' · <span style=\"color:#10B981;\">已提醒</span>' : ' · 待播') + '</div></div>'")
+          .append("        + '<button class=\"sub-btn btn-del\" onclick=\"delReminder(\\'' + r.id + '\\')\">取消预约</button></div>';")
+          .append("    });")
+          .append("    box.innerHTML = html;")
+          .append("  }).catch(function(){});")
+          .append("}")
+          .append("function delReminder(id) { postData({delete_reminder_id: id}); setTimeout(fetchReminders, 300); }")
+          .append("function addCustomReminder() {")
+          .append("  var ch = document.getElementById('remChName').value.trim();")
+          .append("  var prog = document.getElementById('remProgTitle').value.trim();")
+          .append("  var t = document.getElementById('remTime').value.trim();")
+          .append("  if(!ch || !prog || !t) { alert('请填写频道、节目与时间'); return; }")
+          .append("  var now = new Date();")
+          .append("  var parts = t.split(':');")
+          .append("  var target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(parts[0]), parseInt(parts[1]));")
+          .append("  if (target.getTime() < now.getTime() - 60000) target.setDate(target.getDate() + 1);")
+          .append("  postData({add_reminder: true, channel_name: ch, program_title: prog, start_time: target.getTime(), end_time: target.getTime() + 3600000});")
+          .append("  showNotice('已成功预约《' + prog + '》，开播前电视将自动弹窗提醒！', true);")
+          .append("  setTimeout(fetchReminders, 500);")
+          .append("}")
+          .append("function copyRelay(url) {")
+          .append("  if(!url) return;")
+          .append("  if(navigator.clipboard && navigator.clipboard.writeText) {")
+          .append("    navigator.clipboard.writeText(url); showNotice('局域网中继流已复制！可在卧室电视/手机播放器播放', true);")
+          .append("  } else { prompt('局域网中继直链 (复制到其他设备播放)：', url); }")
           .append("}")
           .append("window.onload = function() {")
           .append("  fetchSubs(); fetchStatus();")

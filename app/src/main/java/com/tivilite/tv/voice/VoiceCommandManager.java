@@ -18,12 +18,16 @@ public class VoiceCommandManager {
         VOLUME_DOWN,
         VOLUME_MUTE,
         ASPECT_RATIO,
+        PICTURE_MODE,
+        AUDIO_MODE,
         RECORD_TOGGLE,
         PIP_TOGGLE,
         PIP_SWAP,
         PIP_AUDIO,
         SUBTITLE_TOGGLE,
         FAILOVER,
+        SHOW_REMINDERS,
+        SHOW_RECOMMENDATIONS,
         UNKNOWN
     }
 
@@ -60,12 +64,32 @@ public class VoiceCommandManager {
             return new VoiceResult(Action.VOLUME_MUTE, null, 0, "🔇 已切换静音状态");
         }
 
-        // 2. 录像控制
+        // 2. Phase 7 图像画质模式
+        if (input.contains("画质") || input.contains("图像模式") || input.contains("影院模式") || input.contains("鲜艳模式") || input.contains("体育模式") || input.contains("标准画质")) {
+            return new VoiceResult(Action.PICTURE_MODE, null, 0, "🎛️ 已切换图像画质模式");
+        }
+
+        // 3. Phase 7 音频直通与影院音效
+        if (input.contains("源码直通") || input.contains("音频直通") || input.contains("杜比") || input.contains("防吵") || input.contains("夜间模式") || input.contains("立体声模式")) {
+            return new VoiceResult(Action.AUDIO_MODE, null, 0, "🔊 已切换音频源码直通模式");
+        }
+
+        // 4. Phase 7 预约提醒
+        if (input.contains("预约") || input.contains("我的预约") || input.contains("查看预约") || input.contains("有哪些预约")) {
+            return new VoiceResult(Action.SHOW_REMINDERS, null, 0, "📅 正在为您打开节目预约管家");
+        }
+
+        // 5. AI 热播看点榜
+        if (input.contains("热播") || input.contains("看点") || input.contains("推荐") || input.contains("今天看什么") || input.contains("有什么好看的")) {
+            return new VoiceResult(Action.SHOW_RECOMMENDATIONS, null, 0, "🤖 正在为您打开 AI 实时热播看点榜");
+        }
+
+        // 6. 录像控制
         if (input.contains("录制") || input.contains("录像") || input.contains("开始录制") || input.contains("录下来")) {
             return new VoiceResult(Action.RECORD_TOGGLE, null, 0, "🔴 已触发电视实时录制");
         }
 
-        // 3. 画中画与多视口控制
+        // 7. 画中画与多视口控制
         if (input.contains("主副对调") || input.contains("交换画面") || input.contains("切换主副") || input.contains("画面对调")) {
             return new VoiceResult(Action.PIP_SWAP, null, 0, "🔄 主副画面已即时对调");
         }
@@ -76,7 +100,7 @@ public class VoiceCommandManager {
             return new VoiceResult(Action.PIP_TOGGLE, null, 0, "🖼️ 已触发画中画同屏切换");
         }
 
-        // 4. 字幕与画面比例
+        // 8. 字幕与画面比例
         if (input.contains("字幕") || input.contains("开字幕") || input.contains("关字幕") || input.contains("无障碍")) {
             return new VoiceResult(Action.SUBTITLE_TOGGLE, null, 0, "💬 已切换字幕显示状态");
         }
@@ -84,12 +108,12 @@ public class VoiceCommandManager {
             return new VoiceResult(Action.ASPECT_RATIO, null, 0, "📐 已切换画面显示比例");
         }
 
-        // 5. 换线路 / 测速
+        // 9. 换线路 / 测速
         if (input.contains("卡顿") || input.contains("换线路") || input.contains("换一条") || input.contains("备用源") || input.contains("测速")) {
             return new VoiceResult(Action.FAILOVER, null, 0, "⚡ 已为您优选切换最佳可用线路");
         }
 
-        // 6. 数字切台 (如 "1台", "换到第12台")
+        // 10. 数字切台 (如 "1台", "换到第12台")
         String numStr = input.replaceAll("[^0-9]", "");
         if (!numStr.isEmpty() && (input.contains("台") || input.contains("号") || input.length() <= 3)) {
             try {
@@ -105,7 +129,7 @@ public class VoiceCommandManager {
             } catch (Exception ignored) {}
         }
 
-        // 7. 频道名称模糊匹配与语义去噪
+        // 11. 频道名称模糊匹配与语义去噪
         String cleanQuery = input.replace("请", "")
                 .replace("帮我", "")
                 .replace("我要看", "")
