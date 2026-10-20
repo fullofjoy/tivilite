@@ -122,7 +122,7 @@ public class UniversalHandoffManager {
             if (p.currentChannel != null && !p.currentChannel.isEmpty()
                     && p.currentUrl != null && !p.currentUrl.isEmpty()
                     && (now - p.lastSeen < 30000)) {
-                list.add(new NearbySession(p.deviceId, p.deviceName, "TV/Terminal", p.currentChannel, p.currentUrl, p.currentPtsMs));
+                list.add(new NearbySession(p.deviceId, p.name, "TV/Terminal", p.currentChannel, p.currentUrl, p.currentPtsMs));
             }
         }
         for (NearbySession s : activeSessions.values()) {

@@ -200,11 +200,11 @@ public class NasDvrSchedulerManager {
             }
 
             @Override
-            public void onRecordingProgress(long bytesWritten, long durationMs) {
+            public void onRecordingProgress(long elapsedMs, long bytesRecorded, String formattedRate) {
             }
 
             @Override
-            public void onRecordingStopped(File outputFile, Channel channel, long totalBytes, long durationMs) {
+            public void onRecordingFinished(File outputFile, long durationMs, long bytesRecorded) {
                 task.status = "COMPLETED";
                 task.outputPath = outputFile.getAbsolutePath();
                 activeRecordingTask = null;

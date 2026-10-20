@@ -3662,7 +3662,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onMirrored(String sourceDeviceName, int subscriptionCount, int channelCount) {
                 Toast.makeText(MainActivity.this, "👯 已成功从 [" + sourceDeviceName + "] 克隆 " + subscriptionCount + " 个订阅 (" + channelCount + " 个频道)！", Toast.LENGTH_LONG).show();
-                loadSubscriptions();
+                loadChannels();
             }
 
             @Override

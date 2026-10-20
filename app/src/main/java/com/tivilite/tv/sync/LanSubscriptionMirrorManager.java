@@ -118,7 +118,7 @@ public class LanSubscriptionMirrorManager {
                 if (!isAllowShareEnabled()) return;
 
                 // Build subscription bundle
-                List<SubscriptionManager.Subscription> subs = SubscriptionManager.getAllSubscriptions(context);
+                List<SubscriptionManager.Subscription> subs = SubscriptionManager.getSubscriptions(context);
                 if (subs.isEmpty()) return;
 
                 JSONObject response = new JSONObject();
@@ -244,7 +244,7 @@ public class LanSubscriptionMirrorManager {
             json.put("autoCloneEnabled", isAutoCloneEnabled());
             json.put("allowShareEnabled", isAllowShareEnabled());
             json.put("port", MIRROR_PORT);
-            json.put("subscriptionsCount", SubscriptionManager.getAllSubscriptions(context).size());
+            json.put("subscriptionsCount", SubscriptionManager.getSubscriptions(context).size());
         } catch (Exception ignored) {}
         return json;
     }
