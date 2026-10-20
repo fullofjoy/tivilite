@@ -65,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView groupRecyclerView;
     private RecyclerView channelRecyclerView;
     private RecyclerView epgRecyclerView;
+    private TextView epgTitle;
+    private TextView epgSubtitle;
 
     private TextView osdChannelNum;
     private TextView osdChannelName;
@@ -256,6 +258,8 @@ public class MainActivity extends AppCompatActivity {
         groupRecyclerView = findViewById(R.id.groupRecyclerView);
         channelRecyclerView = findViewById(R.id.channelRecyclerView);
         epgRecyclerView = findViewById(R.id.epgRecyclerView);
+        epgTitle = findViewById(R.id.epgTitle);
+        epgSubtitle = findViewById(R.id.epgSubtitle);
 
         osdChannelNum = findViewById(R.id.osdChannelNum);
         osdChannelName = findViewById(R.id.osdChannelName);
@@ -921,7 +925,7 @@ public class MainActivity extends AppCompatActivity {
             playSelectedChannel(target);
             Toast.makeText(this, "📺 已为您切至预约频道: " + target.getName(), Toast.LENGTH_SHORT).show();
         } else if (item.channelUrl != null && !item.channelUrl.isEmpty()) {
-            Channel ch = new Channel(item.channelName, item.channelUrl, "预约频道", 999, "");
+            Channel ch = new Channel(999, item.channelName, "预约频道", item.channelUrl);
             playSelectedChannel(ch);
         } else {
             Toast.makeText(this, "未在当前播放列表中找到频道: " + item.channelName, Toast.LENGTH_SHORT).show();
