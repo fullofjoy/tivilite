@@ -699,9 +699,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case SUBTITLE_TOGGLE:
                 if (playerManager != null) {
-                    boolean subOn = playerManager.toggleSubtitles();
+                    String subDesc = playerManager.toggleNextSubtitleTrack();
                     updateSubtitleButtonText();
-                    if (osdSubtitle != null) osdSubtitle.setText(subOn ? "💬 字幕: 开" : "💬 字幕: 关");
+                    if (osdSubtitle != null) osdSubtitle.setText(playerManager.isSubtitlesEnabled() ? "💬 字幕: 开" : "💬 字幕: 关");
+                    Toast.makeText(this, "💬 " + subDesc, Toast.LENGTH_SHORT).show();
                 }
                 break;
             case FAILOVER:
