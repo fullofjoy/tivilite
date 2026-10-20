@@ -52,8 +52,8 @@ android {
     }
 
     lint {
-        checkReleaseBuilds = false
-        abortOnError = false
+        isCheckReleaseBuilds = false
+        isAbortOnError = false
     }
 }
 

@@ -32,7 +32,13 @@ jobs:
         cache-disabled: true
 
     - name: Build APK (Release & Debug with Fixed Signature)
-      run: gradle assembleRelease -x lint -x lintVitalRelease -x lintVitalReportRelease -x test --stacktrace || gradle assembleDebug -x lint --stacktrace
+      run: |
+        gradle assembleRelease --stacktrace 2>&1 | tee /tmp/build.log || \
+        gradle assembleDebug --stacktrace 2>&1 | tee /tmp/build.log || {
+          echo "==================== BUILD ERROR OUTPUT ===================="
+          tail -n 150 /tmp/build.log
+          exit 1
+        }
 
     - name: Prepare APK for Release
       run: |
