@@ -551,13 +551,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String formatDuration(long ms) {
-        long sec = (ms / 1000) % 60;
-        long min = (ms / (1000 * 60)) % 60;
-        long hour = ms / (1000 * 60 * 60);
-        return String.format(Locale.getDefault(), "%02d:%02d:%02d", hour, min, sec);
-    }
-
     private String formatBytes(long bytes) {
         if (bytes < 1024 * 1024) return String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0));
@@ -590,7 +583,7 @@ public class MainActivity extends AppCompatActivity {
             op.setItems(ops, (d2, actIdx) -> {
                 if (actIdx == 0) {
                     if (playerManager != null) {
-                        playerManager.playChannel(new Channel(selected.fileName, "file://" + selected.filePath, "已录制节目", null, null, null, false));
+                        playerManager.playChannel(new Channel(999, selected.fileName, "已录制节目", selected.filePath));
                         if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
                         Toast.makeText(this, "正在播放本地录制: " + selected.fileName, Toast.LENGTH_SHORT).show();
                     }

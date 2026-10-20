@@ -144,6 +144,7 @@ public class PlayerManager {
     private int decoderMode = DECODER_MODE_HARDWARE;
     private int aspectRatioMode = ASPECT_RATIO_FIT;
     private int bufferMode = BUFFER_MODE_FAST;
+    private boolean subtitlesEnabled = false;
     private PlayerView attachedPlayerView;
 
     public PlayerManager(Context context) {
@@ -154,6 +155,8 @@ public class PlayerManager {
                 .getInt("aspect_ratio_mode", ASPECT_RATIO_FIT);
         this.bufferMode = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
                 .getInt("buffer_mode", BUFFER_MODE_FAST);
+        this.subtitlesEnabled = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .getBoolean("subtitles_enabled", false);
         initPlayer();
     }
 
@@ -240,6 +243,12 @@ public class PlayerManager {
                 .setLoadControl(loadControl)
                 .setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
                 .build();
+
+        player.setTrackSelectionParameters(
+                player.getTrackSelectionParameters().buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
+                        .build()
+        );
 
         player.setPlayWhenReady(true);
         player.addListener(new Player.Listener() {
@@ -478,20 +487,26 @@ public class PlayerManager {
     }
 
     public boolean isSubtitlesEnabled() {
-        if (player == null) return false;
-        return !player.getTrackSelectionParameters().isTrackTypeDisabled(C.TRACK_TYPE_TEXT);
+        return subtitlesEnabled;
     }
 
     public void setSubtitlesEnabled(boolean enabled) {
-        if (player == null) return;
-        player.setTrackSelectionParameters(
-                player.getTrackSelectionParameters().buildUpon()
-                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
-                        .build()
-        );
+        this.subtitlesEnabled = enabled;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("subtitles_enabled", enabled).apply();
+        if (player != null) {
+            player.setTrackSelectionParameters(
+                    player.getTrackSelectionParameters().buildUpon()
+                            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
+                            .build()
+            );
+        }
     }
 
     public void selectSubtitleTrack(int targetGroupIndex, int targetTrackIndex) {
+        this.subtitlesEnabled = true;
+        context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("subtitles_enabled", true).apply();
         if (player == null) return;
         Tracks tracks = player.getCurrentTracks();
         int currentGroupIdx = 0;
