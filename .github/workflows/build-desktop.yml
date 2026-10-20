@@ -15,7 +15,7 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            args: ''
           - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
@@ -41,6 +41,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libayatana-appindicator3-dev
 
+      - name: Install NPM Dependencies
+        working-directory: desktop
+        run: npm install
+
       - name: Build Tauri Desktop Artifacts
         uses: tauri-apps/tauri-action@v0
         env:
@@ -49,17 +53,6 @@ jobs:
           projectPath: "desktop"
           tagName: ${{ github.ref_name }}
           releaseName: "TiviLite ${{ github.ref_name }} (全端跨平台桌面版与移动版)"
-          releaseBody: |
-            ## 🖥️ TiviLite ${{ github.ref_name }} 桌面端纯净播放器
-
-            专为 Windows、macOS (Apple Silicon & Intel) 及 Linux 打造的极轻量开源视听客户端。
-
-            ### ✨ 桌面核心特性：
-            - ⌨️ **全功能键鼠快捷键**：空格播放暂停、方向键切台/快进退、滚轮调音量、F11全屏
-            - 🪟 **置顶画中画迷你窗 (Mini PiP)**：一键收缩至屏幕边缘置顶悬浮，边办公边看
-            - 🛡️ **全局老板键 (Boss Key)**：一键秒隐并静音 (`Ctrl+Alt+H` / `Cmd+Opt+H`)
-            - ▦ **4 宫格同屏多路监控**：独家支持 4 路高清直播同屏轮巡，极客赛事必备
-            - 🍏 **macOS 原生沉浸视效**：统一内存超低发热，风扇零噪音
-            - 🚀 **极轻量占用**：安装包仅 12MB，内存占用仅 30-50MB，超越 Electron 10倍效能
+          args: ${{ matrix.args }}
           releaseDraft: false
           prerelease: false

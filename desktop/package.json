@@ -1,6 +1,6 @@
 {
   "name": "tivilite-desktop",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "TiviLite Desktop - Lightweight Cross-Platform IPTV & Media Player for Windows, macOS, and Linux",
   "scripts": {
     "tauri": "tauri",
