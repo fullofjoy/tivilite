@@ -31,17 +31,12 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    - name: Build APK (Release & Debug with Fixed Signature)
+    - name: Build APK (Release with Fixed Signature)
       run: |
-        gradle assembleRelease --stacktrace > build_release.log 2>&1 || true
-        gradle assembleDebug --stacktrace > build_debug.log 2>&1 || true
+        gradle assembleRelease --stacktrace > build_release.log 2>&1
         echo "### Release Build Log Tail" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         tail -n 100 build_release.log >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "### Debug Build Log Tail" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        tail -n 100 build_debug.log >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
 
     - name: Push Build Log to Debug Branch
