@@ -1,6 +1,8 @@
 package com.tivilite.tv.data;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import com.tivilite.tv.favorite.FavoriteManager;
 import com.tivilite.tv.model.Channel;
 import com.tivilite.tv.parser.M3UParser;
 import java.io.BufferedReader;
@@ -11,9 +13,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -239,6 +243,82 @@ public class SubscriptionManager {
         }
 
         return result;
+    }
+
+    public static synchronized JSONObject exportAllData(Context context) {
+        JSONObject root = new JSONObject();
+        try {
+            JSONArray subsArr = new JSONArray();
+            for (Subscription s : getSubscriptions(context)) {
+                subsArr.put(s.toJson());
+            }
+            root.put("subscriptions", subsArr);
+
+            JSONArray favsArr = new JSONArray();
+            Set<String> favs = FavoriteManager.getFavoriteNames(context);
+            if (favs != null) {
+                for (String f : favs) favsArr.put(f);
+            }
+            root.put("favorites", favsArr);
+
+            SharedPreferences sp = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE);
+            JSONObject settings = new JSONObject();
+            settings.put("decoder_mode", sp.getInt("decoder_mode", 0));
+            settings.put("aspect_ratio_mode", sp.getInt("aspect_ratio_mode", 0));
+            settings.put("auto_boot_start", sp.getBoolean("auto_boot_start", true));
+            settings.put("invert_up_down", sp.getBoolean("invert_up_down", false));
+            settings.put("mini_drawer_preview", sp.getBoolean("mini_drawer_preview", true));
+            root.put("settings", settings);
+            root.put("version", "1.2.0");
+            root.put("export_time", System.currentTimeMillis());
+        } catch (Exception ignored) {}
+        return root;
+    }
+
+    public static synchronized boolean importAllData(Context context, JSONObject root) {
+        if (root == null) return false;
+        try {
+            if (root.has("subscriptions")) {
+                JSONArray subsArr = root.getJSONArray("subscriptions");
+                List<Subscription> current = getSubscriptions(context);
+                for (int i = 0; i < subsArr.length(); i++) {
+                    Subscription s = Subscription.fromJson(subsArr.getJSONObject(i));
+                    boolean exists = false;
+                    for (Subscription cur : current) {
+                        if (cur.getId().equals(s.getId()) || (cur.getName().equals(s.getName()) && cur.getUrl().equals(s.getUrl()))) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) current.add(s);
+                }
+                saveSubscriptions(context, current);
+            }
+
+            if (root.has("favorites")) {
+                JSONArray favsArr = root.getJSONArray("favorites");
+                Set<String> favs = new HashSet<>(FavoriteManager.getFavoriteNames(context));
+                for (int i = 0; i < favsArr.length(); i++) {
+                    favs.add(favsArr.getString(i));
+                }
+                FavoriteManager.setFavoriteNames(context, favs);
+            }
+
+            if (root.has("settings")) {
+                JSONObject s = root.getJSONObject("settings");
+                SharedPreferences.Editor ed = context.getSharedPreferences("tivilite_prefs", Context.MODE_PRIVATE).edit();
+                if (s.has("decoder_mode")) ed.putInt("decoder_mode", s.getInt("decoder_mode"));
+                if (s.has("aspect_ratio_mode")) ed.putInt("aspect_ratio_mode", s.getInt("aspect_ratio_mode"));
+                if (s.has("auto_boot_start")) ed.putBoolean("auto_boot_start", s.getBoolean("auto_boot_start"));
+                if (s.has("invert_up_down")) ed.putBoolean("invert_up_down", s.getBoolean("invert_up_down"));
+                if (s.has("mini_drawer_preview")) ed.putBoolean("mini_drawer_preview", s.getBoolean("mini_drawer_preview"));
+                ed.apply();
+            }
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public static String normalizeChannelKey(String rawName) {

@@ -31,6 +31,10 @@ public class WebPushServer {
         void onChannelFavoriteToggled(String channelName);
         void onAutoBootToggled();
         void onDecoderToggled();
+        void onAspectRatioToggled();
+        void onAudioTrackToggled();
+        void onBestSourceRequested();
+        void onLanSyncPullRequested(String targetIp);
     }
 
     public interface StatusProvider {
@@ -143,6 +147,9 @@ public class WebPushServer {
                     } else if (firstLine.contains("/api/channels")) {
                         JSONArray chs = (statusProvider != null) ? statusProvider.getChannelsJson() : new JSONArray();
                         serveJsonResponse(out, chs.toString());
+                    } else if (firstLine.contains("/api/export") && context != null) {
+                        JSONObject exportData = SubscriptionManager.exportAllData(context);
+                        serveJsonResponse(out, exportData.toString());
                     } else {
                         serveHtmlPage(out);
                     }
@@ -169,6 +176,18 @@ public class WebPushServer {
                     String key = obj.optString("remote_key", obj.optString("key", ""));
                     String val = obj.optString("value", "");
                     if (!key.isEmpty()) {
+                        if ("aspect".equals(key)) {
+                            listener.onAspectRatioToggled();
+                            return;
+                        }
+                        if ("audio".equals(key)) {
+                            listener.onAudioTrackToggled();
+                            return;
+                        }
+                        if ("best_source".equals(key)) {
+                            listener.onBestSourceRequested();
+                            return;
+                        }
                         listener.onRemoteKeyReceived(key, val);
                         return;
                     }
@@ -199,6 +218,30 @@ public class WebPushServer {
                 }
                 if (obj.has("toggle_decoder")) {
                     listener.onDecoderToggled();
+                    return;
+                }
+                if (obj.has("toggle_aspect")) {
+                    listener.onAspectRatioToggled();
+                    return;
+                }
+                if (obj.has("toggle_audio")) {
+                    listener.onAudioTrackToggled();
+                    return;
+                }
+                if (obj.has("best_source")) {
+                    listener.onBestSourceRequested();
+                    return;
+                }
+
+                // LAN Sync Pull & Import
+                if (requestLine.contains("/api/sync/pull") || obj.has("sync_pull_ip")) {
+                    String ip = obj.optString("sync_pull_ip", obj.optString("ip", ""));
+                    if (!ip.isEmpty()) listener.onLanSyncPullRequested(ip);
+                    return;
+                }
+                if (requestLine.contains("/api/sync/import") && context != null) {
+                    SubscriptionManager.importAllData(context, obj);
+                    listener.onSubscriptionToggled("", true);
                     return;
                 }
 

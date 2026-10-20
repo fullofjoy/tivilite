@@ -39,6 +39,17 @@ public class FavoriteManager {
         return isNowFav;
     }
 
+    public static Set<String> getFavoriteNames(Context context) {
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        Set<String> favs = sp.getStringSet(KEY_FAVORITES, Collections.emptySet());
+        return favs != null ? favs : Collections.emptySet();
+    }
+
+    public static void setFavoriteNames(Context context, Set<String> names) {
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        sp.edit().putStringSet(KEY_FAVORITES, names).apply();
+    }
+
     public static List<Channel> getFavorites(Context context, List<Channel> allChannels) {
         List<Channel> list = new ArrayList<>();
         if (allChannels == null || allChannels.isEmpty()) return list;

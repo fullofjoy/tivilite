@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "version_code": 11,
-  "release_notes": "1. 📺 彻底重构设置菜单弹窗：280dp 紧凑双列宽屏排版，防溢出约束，大屏与小屏机顶盒均 100% 完整显示\n2. 🎮 遥控器 D-Pad 焦点直通：方向键精准切换设置项，DOWN/UP 按键事件全透传，OK 键秒速触发点击\n3. 📱 手机 Web 虚拟遥控器与大屏实时状态互联\n4. 🎬 边看边选实时 EPG 节目单\n5. 🛡️ 官方统一固定签名，支持免卸载平滑覆盖更新",
-  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.1.1/TiviLite-v1.1.1.apk"
+  "version": "1.2.0",
+  "version_code": 12,
+  "release_notes": "1. 📐 画面比例多模自适应 (自适应 FIT / 全屏拉伸 FILL / 智能裁剪 ZOOM)\n2. 🔊 多音轨与多声道无缝切换 (普通话/粤语/英语/杜比环绕声)\n3. ⚡ 多线路智能并发测速与优选 (实时显示 Ping 延迟毫秒)\n4. 🎬 抽屉边看边选小窗微缩平滑沉浸动效\n5. 📡 局域网同源联动 (客厅与卧室电视一键克隆同步全部订阅与收藏)\n6. 🛡️ 官方统一正式签名，支持免卸载无缝升级",
+  "download_url": "https://github.com/fullofjoy/tivilite/releases/download/v1.2.0/TiviLite-v1.2.0.apk"
 }

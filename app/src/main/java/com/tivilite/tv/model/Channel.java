@@ -91,7 +91,17 @@ public class Channel {
     }
 
     public String getSourceInfo() {
-        return "线路 " + (currentUrlIndex + 1) + "/" + Math.max(1, urls.size());
+        String base = "线路 " + (currentUrlIndex + 1) + "/" + Math.max(1, urls.size());
+        String badge = com.tivilite.tv.player.SourceBenchmarkManager.getInstance().getLatencyBadge(getUrl());
+        return badge.isEmpty() ? base : (base + " (" + badge + ")");
+    }
+
+    public boolean setCurrentUrlIndex(int index) {
+        if (index >= 0 && index < urls.size()) {
+            this.currentUrlIndex = index;
+            return true;
+        }
+        return false;
     }
 
     public boolean isCurrentUrlIpv6() {

@@ -80,6 +80,13 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnCheckUpdate;
     private android.widget.Button btnToggleAutoBoot;
     private android.widget.Button btnToggleDecoder;
+    private android.widget.Button btnToggleAspectRatio;
+    private android.widget.Button btnToggleAudioTrack;
+    private android.widget.Button btnToggleMiniDrawer;
+    private android.widget.Button btnSwitchBestSource;
+    private android.widget.Button btnLanSync;
+    private TextView osdAspect;
+    private TextView osdAudio;
     private TextView subscriptionSummaryText;
     private CardView onboardingOverlay;
     private ImageView onboardingQrCode;
@@ -87,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.Button btnOnboardingDemo;
     private LinearLayout remoteHintToast;
     private boolean invertUpDown = false;
+    private boolean miniDrawerPreview = true;
 
     private PlayerManager playerManager;
     private WebPushServer webServer;
@@ -229,6 +237,64 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        osdAspect = findViewById(R.id.osdAspect);
+        osdAudio = findViewById(R.id.osdAudio);
+
+        miniDrawerPreview = getSharedPreferences("tivilite_prefs", MODE_PRIVATE).getBoolean("mini_drawer_preview", true);
+
+        btnToggleAspectRatio = findViewById(R.id.btnToggleAspectRatio);
+        if (btnToggleAspectRatio != null) {
+            updateAspectRatioButtonText();
+            btnToggleAspectRatio.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                String mode = playerManager.toggleNextAspectRatio();
+                updateAspectRatioButtonText();
+                if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                Toast.makeText(this, "📐 已切换画面比例: " + mode, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnToggleAudioTrack = findViewById(R.id.btnToggleAudioTrack);
+        if (btnToggleAudioTrack != null) {
+            updateAudioTrackButtonText();
+            btnToggleAudioTrack.setOnClickListener(v -> {
+                if (playerManager == null) return;
+                String t = playerManager.toggleNextAudioTrack();
+                if (t != null) {
+                    updateAudioTrackButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    Toast.makeText(this, "🔊 已切换音轨: " + t, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "当前视频流仅有 1 组默认音轨", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        btnToggleMiniDrawer = findViewById(R.id.btnToggleMiniDrawer);
+        if (btnToggleMiniDrawer != null) {
+            updateMiniDrawerButtonText();
+            btnToggleMiniDrawer.setOnClickListener(v -> {
+                miniDrawerPreview = !miniDrawerPreview;
+                getSharedPreferences("tivilite_prefs", MODE_PRIVATE).edit().putBoolean("mini_drawer_preview", miniDrawerPreview).apply();
+                updateMiniDrawerButtonText();
+                Toast.makeText(this, miniDrawerPreview ? "🎬 已开启抽屉边看边选小窗微缩" : "已关闭小窗微缩 (全屏背景)", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnSwitchBestSource = findViewById(R.id.btnSwitchBestSource);
+        if (btnSwitchBestSource != null) {
+            btnSwitchBestSource.setOnClickListener(v -> {
+                if (playerManager == null || playerManager.getCurrentChannel() == null) return;
+                Toast.makeText(this, "⚡ 正在并发测速并优选最佳线路...", Toast.LENGTH_SHORT).show();
+                playerManager.switchToBestSource();
+            });
+        }
+
+        btnLanSync = findViewById(R.id.btnLanSync);
+        if (btnLanSync != null) {
+            btnLanSync.setOnClickListener(v -> showLanSyncDialog());
+        }
+
         subscriptionSummaryText = findViewById(R.id.subscriptionSummaryText);
         updateSubscriptionSummary();
 
@@ -300,6 +366,108 @@ public class MainActivity extends AppCompatActivity {
                     ? "🎬 解码器模式: 软件兼容解码 (防闪退花屏) - 点击切换"
                     : "🎬 解码器模式: 硬件加速解码 (推荐流畅低耗) - 点击切换");
         }
+    }
+
+    private void updateAspectRatioButtonText() {
+        if (btnToggleAspectRatio != null && playerManager != null) {
+            btnToggleAspectRatio.setText("📐 画面比例: " + playerManager.getAspectRatioModeText() + " - 点击切换");
+        }
+    }
+
+    private void updateAudioTrackButtonText() {
+        if (btnToggleAudioTrack != null && playerManager != null) {
+            btnToggleAudioTrack.setText("🔊 音轨/声道: " + playerManager.getCurrentAudioTrackDesc() + " - 点击切换");
+        }
+    }
+
+    private void updateMiniDrawerButtonText() {
+        if (btnToggleMiniDrawer != null) {
+            btnToggleMiniDrawer.setText(miniDrawerPreview
+                    ? "🎬 抽屉边看边选小窗微缩: 已开启 - 点击切换"
+                    : "🎬 抽屉边看边选小窗微缩: 已关闭 - 点击切换");
+        }
+    }
+
+    private void showLeftSidebar() {
+        leftSidebar.setVisibility(View.VISIBLE);
+        channelRecyclerView.requestFocus();
+        if (miniDrawerPreview && playerView != null) {
+            playerView.animate()
+                    .translationX(220f)
+                    .scaleX(0.72f)
+                    .scaleY(0.72f)
+                    .setDuration(220)
+                    .start();
+        }
+    }
+
+    private void hideLeftSidebar() {
+        leftSidebar.setVisibility(View.GONE);
+        if (playerView != null) {
+            playerView.animate()
+                    .translationX(0f)
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(180)
+                    .start();
+        }
+    }
+
+    private void showLanSyncDialog() {
+        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(this);
+        b.setTitle("📡 局域网多电视同源联动");
+        b.setMessage("输入同局域网另一台电视 (如客厅或卧室) 的 IP 地址，一键同步克隆其全部 M3U 订阅、多线路聚合源与收藏列表：");
+
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("例如：192.168.1.116");
+        String myIp = com.tivilite.tv.server.WebPushServer.getLocalIpAddress();
+        if (myIp != null && myIp.contains(".")) {
+            input.setText(myIp.substring(0, myIp.lastIndexOf('.') + 1));
+            input.setSelection(input.getText().length());
+        }
+        b.setView(input);
+
+        b.setPositiveButton("🚀 开始同步", (dialog, which) -> {
+            String ip = input.getText().toString().trim();
+            if (!ip.isEmpty()) {
+                pullFromLanTv(ip);
+            }
+        });
+        b.setNegativeButton("取消", null);
+        b.show();
+    }
+
+    private void pullFromLanTv(String targetIp) {
+        Toast.makeText(this, "📡 正在连接目标电视 (" + targetIp + ")...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                String targetUrl = "http://" + targetIp + ":8888/api/export";
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(targetUrl).openConnection();
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(5000);
+                if (conn.getResponseCode() == 200) {
+                    java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    org.json.JSONObject root = new org.json.JSONObject(sb.toString());
+                    boolean ok = SubscriptionManager.importAllData(MainActivity.this, root);
+                    handler.post(() -> {
+                        if (ok) {
+                            applyAggregatedSubscriptions();
+                            updateSubscriptionSummary();
+                            Toast.makeText(MainActivity.this, "🎉 局域网同源同步成功！已导入并加载所有配置", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "❌ 同步失败：配置格式无法识别", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    handler.post(() -> Toast.makeText(MainActivity.this, "❌ 无法连接目标电视，请确认目标电视正在运行 TiviLite 且处于同一Wi-Fi", Toast.LENGTH_LONG).show());
+                }
+            } catch (Exception e) {
+                handler.post(() -> Toast.makeText(MainActivity.this, "❌ 局域网连接超时，请检查电视 IP (" + targetIp + ") 是否正确", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void updateSubscriptionSummary() {
@@ -533,14 +701,13 @@ public class MainActivity extends AppCompatActivity {
                         if (rightEpgPanel.getVisibility() == View.VISIBLE) {
                             rightEpgPanel.setVisibility(View.GONE);
                         } else if (leftSidebar.getVisibility() != View.VISIBLE) {
-                            leftSidebar.setVisibility(View.VISIBLE);
-                            channelRecyclerView.requestFocus();
+                            showLeftSidebar();
                         } else {
                             groupRecyclerView.requestFocus();
                         }
                     } else if ("right".equals(key)) {
                         if (leftSidebar.getVisibility() == View.VISIBLE) {
-                            leftSidebar.setVisibility(View.GONE);
+                            hideLeftSidebar();
                         } else if (rightEpgPanel.getVisibility() != View.VISIBLE) {
                             Channel ch = playerManager != null ? playerManager.getCurrentChannel() : null;
                             if (ch != null) populateEpgTimeline(ch);
@@ -568,7 +735,7 @@ public class MainActivity extends AppCompatActivity {
                         } else if (webConfigDialog.getVisibility() == View.VISIBLE) {
                             webConfigDialog.setVisibility(View.GONE);
                         } else if (leftSidebar.getVisibility() == View.VISIBLE) {
-                            leftSidebar.setVisibility(View.GONE);
+                            hideLeftSidebar();
                         } else if (rightEpgPanel.getVisibility() == View.VISIBLE) {
                             rightEpgPanel.setVisibility(View.GONE);
                         } else if (bottomOsd.getVisibility() == View.VISIBLE) {
@@ -685,6 +852,46 @@ public class MainActivity extends AppCompatActivity {
                             : "🎬 已切换为硬件加速解码模式", Toast.LENGTH_SHORT).show();
                 });
             }
+
+            @Override
+            public void onAspectRatioToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    String mode = playerManager.toggleNextAspectRatio();
+                    updateAspectRatioButtonText();
+                    if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                    Toast.makeText(MainActivity.this, "📐 已切换画面比例: " + mode, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onAudioTrackToggled() {
+                handler.post(() -> {
+                    if (playerManager == null) return;
+                    String t = playerManager.toggleNextAudioTrack();
+                    if (t != null) {
+                        updateAudioTrackButtonText();
+                        if (playerManager.getCurrentChannel() != null) updateOsd(playerManager.getCurrentChannel());
+                        Toast.makeText(MainActivity.this, "🔊 已切换音轨: " + t, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "当前视频流仅有 1 组默认音轨", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onBestSourceRequested() {
+                handler.post(() -> {
+                    if (playerManager == null || playerManager.getCurrentChannel() == null) return;
+                    playerManager.switchToBestSource();
+                    Toast.makeText(MainActivity.this, "⚡ 正在测速并优选最佳线路...", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onLanSyncPullRequested(String targetIp) {
+                handler.post(() -> pullFromLanTv(targetIp));
+            }
         });
 
         webServer.setStatusProvider(new WebPushServer.StatusProvider() {
@@ -712,6 +919,8 @@ public class MainActivity extends AppCompatActivity {
                     json.put("is_catchup_mode", playerManager != null && playerManager.isCatchupMode());
                     json.put("decoder_mode", (playerManager != null && playerManager.getDecoderMode() == PlayerManager.DECODER_MODE_SOFTWARE)
                             ? "软件兼容解码" : "硬件加速 (MediaCodec)");
+                    json.put("aspect_ratio", playerManager != null ? playerManager.getAspectRatioModeText() : "自适应 (FIT)");
+                    json.put("audio_track", playerManager != null ? playerManager.getCurrentAudioTrackDesc() : "标准立体声");
                     json.put("total_channels", allChannels != null ? allChannels.size() : 0);
                     json.put("device_id", com.tivilite.tv.license.LicenseManager.getDeviceId(MainActivity.this));
                     json.put("pro_status_text", com.tivilite.tv.license.LicenseManager.getProStatusText(MainActivity.this));
@@ -833,7 +1042,7 @@ public class MainActivity extends AppCompatActivity {
         channelAdapter.setCurrentPlayingChannel(channel);
         updateOsd(channel);
         showOsd();
-        leftSidebar.setVisibility(View.GONE);
+        hideLeftSidebar();
 
         // Remember last played channel index
         int idx = allChannels.indexOf(channel);
@@ -854,6 +1063,13 @@ public class MainActivity extends AppCompatActivity {
         osdBadge.setText(channel.hasCatchup() ? "时移回看" : "高清实时");
         if (osdSource != null) {
             osdSource.setText(channel.getSourceInfo());
+        }
+
+        if (osdAspect != null && playerManager != null) {
+            osdAspect.setText("📐 " + playerManager.getAspectRatioModeText());
+        }
+        if (osdAudio != null && playerManager != null) {
+            osdAudio.setText("🔊 " + playerManager.getCurrentAudioTrackDesc());
         }
 
         if (channel.getLogoUrl() != null && !channel.getLogoUrl().isEmpty()) {
@@ -960,13 +1176,12 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
                 if (leftSidebar.getVisibility() != View.VISIBLE) {
-                    leftSidebar.setVisibility(View.VISIBLE);
-                    channelRecyclerView.requestFocus();
+                    showLeftSidebar();
                     return true;
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (leftSidebar.getVisibility() == View.VISIBLE) {
-                    leftSidebar.setVisibility(View.GONE);
+                    hideLeftSidebar();
                     return true;
                 }
                 if (rightEpgPanel.getVisibility() != View.VISIBLE) {
@@ -1036,7 +1251,7 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
                 if (leftSidebar.getVisibility() == View.VISIBLE) {
-                    leftSidebar.setVisibility(View.GONE);
+                    hideLeftSidebar();
                     return true;
                 }
                 if (rightEpgPanel.getVisibility() == View.VISIBLE) {
@@ -1159,6 +1374,11 @@ public class MainActivity extends AppCompatActivity {
                 settingProStatusText.setText(com.tivilite.tv.license.LicenseManager.getProStatusText(this));
             }
             updateDirectionButtonText();
+            updateAspectRatioButtonText();
+            updateAudioTrackButtonText();
+            updateMiniDrawerButtonText();
+            updateAutoBootButtonText();
+            updateDecoderButtonText();
             String ip = WebPushServer.getLocalIpAddress();
             String url = "http://" + ip + ":8888";
             webServerUrlText.setText(url);
