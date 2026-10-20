@@ -31,14 +31,16 @@
             android:textColor="@color/tv_text_secondary"
             android:textSize="14sp" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnStartTrialPro"
             android:layout_width="match_parent"
-            android:layout_height="42dp"
+            android:layout_height="44dp"
             android:layout_marginTop="10dp"
-            android:backgroundTint="#10B981"
+            app:backgroundTint="@null"
+            android:background="@drawable/selector_tv_button"
+            android:focusable="true"
             android:text="🎁 立即开启 3 天 Pro 全功能免费体验"
-            android:textColor="@color/white"
+            android:textColor="@color/tv_badge_catchup"
             android:textStyle="bold"
             android:visibility="gone" />
 
@@ -86,25 +88,29 @@
             android:layout_marginTop="18dp"
             android:orientation="horizontal">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnCancelPro"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="44dp"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:backgroundTint="#242938"
+                app:backgroundTint="@null"
+                android:background="@drawable/selector_tv_button"
+                android:focusable="true"
                 android:text="暂不解锁"
                 android:textColor="@color/tv_text_secondary" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnActivatePro"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="44dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:backgroundTint="@color/tv_accent_blue"
+                app:backgroundTint="@null"
+                android:background="@drawable/selector_tv_button"
+                android:focusable="true"
                 android:text="立即激活"
-                android:textColor="@color/white"
+                android:textColor="@color/tv_accent"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>

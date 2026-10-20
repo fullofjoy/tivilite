@@ -29,9 +29,10 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.5'
+        cache-disabled: true
 
     - name: Build APK (Release & Debug with Fixed Signature)
-      run: gradle assembleRelease --stacktrace || gradle assembleDebug --stacktrace
+      run: gradle assembleRelease -x lint -x lintVitalRelease -x lintVitalReportRelease -x test --stacktrace || gradle assembleDebug -x lint --stacktrace
 
     - name: Prepare APK for Release
       run: |

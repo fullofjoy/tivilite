@@ -238,173 +238,226 @@
     <!-- 6. Web Config / QR Code Modal Dialog -->
     <androidx.cardview.widget.CardView
         android:id="@+id/webConfigDialog"
-        android:layout_width="560dp"
+        android:layout_width="820dp"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        tools:visibility="gone"
+        tools:visibility="visible"
         app:cardBackgroundColor="@color/tv_bg_translucent"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="16dp"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="26dp">
+            android:fillViewport="true"
+            android:scrollbars="none">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="⚙️ TiviLite 偏好设置与局域网助手"
-                android:textColor="@color/tv_accent"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <!-- Pro Status Box -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="@drawable/selector_tv_item"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="12dp">
+                android:padding="22dp">
 
-                <TextView
-                    android:id="@+id/settingProStatusText"
+                <!-- Left Column: Settings Options (440dp) -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.3"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️ TiviLite 偏好设置"
+                        android:textColor="@color/tv_accent"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <!-- Pro Status Box -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/selector_tv_button"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:id="@+id/settingProStatusText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="👑 TiviLite Pro 已永久激活"
+                            android:textColor="@color/tv_badge_catchup"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/btnViewProDetails"
+                            android:layout_width="wrap_content"
+                            android:layout_height="34dp"
+                            app:backgroundTint="@null"
+                            android:background="@drawable/selector_tv_button"
+                            android:focusable="true"
+                            android:text="会员详情"
+                            android:textColor="#FFF"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <!-- Channel Up/Down Invert Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleDirection"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:text="🎮 遥控切台方向: 正常 (▲上一台 / ▼下一台)"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="13sp" />
+
+                    <!-- Auto Boot Start Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleAutoBoot"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:text="🚀 开机自动直达直播: 已开启 - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="13sp" />
+
+                    <!-- Decoder Mode Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnToggleDecoder"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:text="🎬 解码器模式: 硬件加速 (推荐流畅) - 点击切换"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="13sp" />
+
+                    <!-- Online OTA Update Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnCheckUpdate"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:text="🔄 在线检查新版本更新"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="13sp" />
+
+                    <!-- Close Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnCloseDialog"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="8dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:text="❌ 关闭窗口 (按遥控返回键亦可)"
+                        android:textColor="@color/tv_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Center Divider -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginHorizontal="18dp"
+                    android:background="#22FFFFFF" />
+
+                <!-- Right Column: Phone Assistant & QR Code (320dp) -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="👑 TiviLite Pro 已永久激活"
-                    android:textColor="@color/tv_badge_catchup"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/btnViewProDetails"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:backgroundTint="@color/tv_accent_blue"
-                    android:text="会员详情"
-                    android:textColor="#FFF"
-                    android:textSize="12sp" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📱 局域网配源与虚拟遥控"
+                        android:textColor="@color/tv_text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="同一 Wi-Fi 手机浏览器/微信扫码"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:layout_marginTop="2dp" />
+
+                    <!-- QR Code Section -->
+                    <ImageView
+                        android:id="@+id/qrCodeImageView"
+                        android:layout_width="135dp"
+                        android:layout_height="135dp"
+                        android:layout_marginTop="8dp"
+                        android:background="#FFFFFF"
+                        android:padding="6dp"
+                        android:scaleType="fitCenter" />
+
+                    <TextView
+                        android:id="@+id/webServerUrlText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/selector_tv_button"
+                        android:padding="8dp"
+                        android:focusable="true"
+                        android:text="http://192.168.1.100:8888"
+                        android:textAlignment="center"
+                        android:textColor="@color/tv_accent"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <!-- Subscription Summary Badge -->
+                    <TextView
+                        android:id="@+id/subscriptionSummaryText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="#15FFFFFF"
+                        android:padding="6dp"
+                        android:text="📁 订阅源: 暂无生效订阅 (扫码导入)"
+                        android:textColor="@color/tv_badge_catchup"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="手机化身触控遥控器 · 换台/音量/源管理"
+                        android:textColor="@color/tv_text_dim"
+                        android:textSize="10sp"
+                        android:gravity="center" />
+                </LinearLayout>
+
             </LinearLayout>
-
-            <!-- Channel Up/Down Invert Button -->
-            <Button
-                android:id="@+id/btnToggleDirection"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="10dp"
-                android:backgroundTint="#242938"
-                android:text="🎮 遥控切台方向: 正常 (▲上一台 / ▼下一台)"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="13sp" />
-
-            <!-- Online OTA Update Button -->
-            <Button
-                android:id="@+id/btnCheckUpdate"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:focusable="true"
-                android:backgroundTint="#242938"
-                android:text="🔄 在线检查新版本更新"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="13sp" />
-
-            <!-- Auto Boot Start Button -->
-            <Button
-                android:id="@+id/btnToggleAutoBoot"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:focusable="true"
-                android:backgroundTint="#242938"
-                android:text="🚀 开机自动直达直播: 已开启 - 点击切换"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="13sp" />
-
-            <!-- Decoder Mode Button -->
-            <Button
-                android:id="@+id/btnToggleDecoder"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:focusable="true"
-                android:backgroundTint="#242938"
-                android:text="🎬 解码器模式: 硬件加速 (推荐流畅) - 点击切换"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="13sp" />
-
-            <!-- Subscription Summary Badge -->
-            <TextView
-                android:id="@+id/subscriptionSummaryText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="#15FFFFFF"
-                android:padding="8dp"
-                android:text="📁 订阅源: 暂无生效订阅 (扫码导入)"
-                android:textColor="@color/tv_accent"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <!-- Divider -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="12dp"
-                android:background="#22FFFFFF" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="📱 局域网配源助手 (同一 Wi-Fi 手机浏览器打开):"
-                android:textColor="@color/tv_text_secondary"
-                android:textSize="13sp" />
-
-            <!-- QR Code Section -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_marginVertical="8dp"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:id="@+id/qrCodeImageView"
-                    android:layout_width="140dp"
-                    android:layout_height="140dp"
-                    android:background="#FFFFFF"
-                    android:padding="6dp"
-                    android:scaleType="fitCenter" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/webServerUrlText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:background="@drawable/selector_tv_item"
-                android:padding="8dp"
-                android:text="http://192.168.1.100:8888"
-                android:textAlignment="center"
-                android:textColor="@color/tv_text_primary"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="手机扫码直接粘贴 M3U 订阅或输入激活码！按 [返回键] 关闭本窗口。"
-                android:textColor="@color/tv_text_dim"
-                android:textSize="12sp" />
-        </LinearLayout>
+        </ScrollView>
     </androidx.cardview.widget.CardView>
 
     <!-- 7. Catch-up Seek Bar OSD -->

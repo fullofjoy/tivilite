@@ -232,6 +232,13 @@ public class MainActivity extends AppCompatActivity {
         subscriptionSummaryText = findViewById(R.id.subscriptionSummaryText);
         updateSubscriptionSummary();
 
+        View btnCloseDialog = findViewById(R.id.btnCloseDialog);
+        if (btnCloseDialog != null) {
+            btnCloseDialog.setOnClickListener(v -> {
+                if (webConfigDialog != null) webConfigDialog.setVisibility(View.GONE);
+            });
+        }
+
         onboardingOverlay = findViewById(R.id.onboardingOverlay);
         onboardingQrCode = findViewById(R.id.onboardingQrCode);
         onboardingServerUrl = findViewById(R.id.onboardingServerUrl);
@@ -882,7 +889,17 @@ public class MainActivity extends AppCompatActivity {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
 
-            // 0. Interactive Failover & Error Overlay Navigation
+            // 0. Settings / Web Config Dialog Remote Navigation
+            if (webConfigDialog != null && webConfigDialog.getVisibility() == View.VISIBLE) {
+                if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
+                    webConfigDialog.setVisibility(View.GONE);
+                    return true;
+                }
+                // Allow remote D-pad UP/DOWN/LEFT/RIGHT/CENTER/ENTER to seamlessly navigate and click buttons in the dialog
+                return super.dispatchKeyEvent(event);
+            }
+
+            // 1. Interactive Failover & Error Overlay Navigation
             if (playbackErrorOverlay != null && playbackErrorOverlay.getVisibility() == View.VISIBLE) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
                     playerManager.retryCurrent();
@@ -1140,10 +1157,13 @@ public class MainActivity extends AppCompatActivity {
             if (qrBmp != null && qrCodeImageView != null) {
                 qrCodeImageView.setImageBitmap(qrBmp);
             }
+            updateSubscriptionSummary();
             webConfigDialog.setVisibility(View.VISIBLE);
-            if (btnToggleDirection != null) {
-                btnToggleDirection.requestFocus();
-            }
+            webConfigDialog.post(() -> {
+                if (btnToggleDirection != null) {
+                    btnToggleDirection.requestFocus();
+                }
+            });
         }
     }
 
