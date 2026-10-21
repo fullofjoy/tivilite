@@ -152,6 +152,21 @@ public class PluginManager {
         cdnEnhance.headers.put("X-Forwarded-For", "116.228.111.18");
         plugins.add(cdnEnhance);
 
+        // 4. YangShiPin (YSP) & CCTV-14 Kids Stream Resolver
+        PluginRule yspRule = new PluginRule();
+        yspRule.id = "ysp_cctv_resolver";
+        yspRule.name = "央视频 (YSP) 直播流防盗链与 Referer 穿透";
+        yspRule.author = "TiviLite 官方团队";
+        yspRule.description = "自动注入央视频官方 Referer、Origin 与桌面端 UA，穿透 CDN 防盗链，修复少儿频道等 403 无法加载问题";
+        yspRule.enabled = true;
+        yspRule.urlPattern = ".*yangshipin\\.cn.*|.*ysp.*|.*livepull.*|.*kscr\\.yangshipin.*|.*tx\\.live\\.ysp.*";
+        yspRule.headers.put("Referer", "https://www.yangshipin.cn/");
+        yspRule.headers.put("Origin", "https://www.yangshipin.cn");
+        yspRule.headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+        yspRule.headers.put("Connection", "keep-alive");
+        yspRule.headers.put("Accept", "*/*");
+        plugins.add(yspRule);
+
         savePlugins();
     }
 
@@ -168,6 +183,33 @@ public class PluginManager {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load plugins JSON", e);
             }
+        }
+        ensureYspPlugin();
+    }
+
+    private void ensureYspPlugin() {
+        boolean found = false;
+        for (PluginRule r : plugins) {
+            if ("ysp_cctv_resolver".equals(r.id)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            PluginRule yspRule = new PluginRule();
+            yspRule.id = "ysp_cctv_resolver";
+            yspRule.name = "央视频 (YSP) 直播流防盗链与 Referer 穿透";
+            yspRule.author = "TiviLite 官方团队";
+            yspRule.description = "自动注入央视频官方 Referer、Origin 与桌面端 UA，穿透 CDN 防盗链，修复少儿频道等 403 无法加载问题";
+            yspRule.enabled = true;
+            yspRule.urlPattern = ".*yangshipin\\.cn.*|.*ysp.*|.*livepull.*|.*kscr\\.yangshipin.*|.*tx\\.live\\.ysp.*";
+            yspRule.headers.put("Referer", "https://www.yangshipin.cn/");
+            yspRule.headers.put("Origin", "https://www.yangshipin.cn");
+            yspRule.headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+            yspRule.headers.put("Connection", "keep-alive");
+            yspRule.headers.put("Accept", "*/*");
+            plugins.add(yspRule);
+            savePlugins();
         }
     }
 

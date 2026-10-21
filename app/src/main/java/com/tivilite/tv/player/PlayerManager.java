@@ -350,13 +350,15 @@ public class PlayerManager {
         String diagnostic = diagnoseError(error);
 
         // Phase 8: Adaptive Failover - If auto failover is enabled and channel has alternative lines, switch immediately
-        if (isAutoFailoverEnabled && currentChannel != null && currentChannel.hasAlternativeUrls() && autoRetryCount >= 1) {
+        boolean isHttpAuthError = error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS;
+        if (isAutoFailoverEnabled && currentChannel != null && currentChannel.hasAlternativeUrls() && (isHttpAuthError || autoRetryCount >= 1)) {
             currentChannel.switchToNextUrl();
             autoRetryCount = 0;
             if (callback != null) {
-                callback.onAlternativeSourceSwitched("当前线路网络故障，已为您智能无缝容灾切换至 " + currentChannel.getSourceInfo());
+                String reason = isHttpAuthError ? "当前线路鉴权失效(403)或防盗链拦截" : "当前线路网络超时";
+                callback.onAlternativeSourceSwitched(reason + "，已为您智能容灾切换至 " + currentChannel.getSourceInfo());
             }
-            handler.postDelayed(() -> playChannel(currentChannel), 600);
+            handler.postDelayed(() -> playChannel(currentChannel), 400);
             return;
         }
 
@@ -917,12 +919,17 @@ public class PlayerManager {
     private void playUrlInternal(String url) {
         if (callback != null) callback.onLoading(true);
 
-        // Phase 8 Plugin dynamic URL resolution & header injection
+        // Phase 8 Plugin dynamic URL resolution & header injection (YSP, Bilibili, Douyu, etc.)
         PluginManager.ResolvedStream resolved = PluginManager.getInstance(context).resolve(url);
         String targetUrl = (resolved != null && resolved.url != null) ? resolved.url : url;
         targetUrl = BlurayDolbyManager.getInstance(context).resolveBluRayPlayablePath(targetUrl);
-        if (httpDataSourceFactory != null && resolved != null && resolved.headers != null && !resolved.headers.isEmpty()) {
-            httpDataSourceFactory.setDefaultRequestProperties(resolved.headers);
+        if (httpDataSourceFactory != null) {
+            Map<String, String> requestHeaders = new HashMap<>();
+            requestHeaders.put("User-Agent", "Mozilla/5.0 (Linux; Android 10; TV Box Build/QP1A.190711.020) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36");
+            if (resolved != null && resolved.headers != null && !resolved.headers.isEmpty()) {
+                requestHeaders.putAll(resolved.headers);
+            }
+            httpDataSourceFactory.setDefaultRequestProperties(requestHeaders);
         }
 
         String playable = LanMulticastManager.getInstance(context).resolvePlayableUrl(targetUrl, 8888);
