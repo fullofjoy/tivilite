@@ -5,11 +5,16 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/fullofjoy/tivilite/stargazers"><img src="https://img.shields.io/github/stars/fullofjoy/tivilite?style=flat-square&logo=github&color=gold" alt="GitHub Stars"/></a>
   <a href="https://github.com/fullofjoy/tivilite/releases"><img src="https://img.shields.io/badge/Release-v2.1.0-blue.svg?style=flat-square" alt="Version"/></a>
   <a href="#"><img src="https://img.shields.io/badge/Platform-Android%20TV%20%7C%20Phone%20%7C%20Tablet%20%7C%20Windows%20%7C%20macOS%20%7C%20iOS-brightgreen.svg?style=flat-square" alt="Platform"/></a>
   <a href="#"><img src="https://img.shields.io/badge/Size-%3C%208MB-orange.svg?style=flat-square" alt="Size"/></a>
   <a href="#"><img src="https://img.shields.io/badge/Engine-Media3%20ExoPlayer%20%2B%20Tauri%202.0%20%2B%20AVKit-red.svg?style=flat-square" alt="Engine"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-lightgrey.svg?style=flat-square" alt="License"/></a>
+</p>
+
+<p align="center">
+  <b>⭐ 如果这个项目对你有帮助，欢迎点亮右上角的 Star 给予开发者一份支持与鼓励！</b>
 </p>
 
 ---
@@ -228,6 +233,18 @@ open Package.swift
 * TiviLite 是一款**纯粹的中立多媒体与流媒体播放器框架**。
 * 项目软件及源码中**严禁包含、不内置、不提供、不分发任何音视频资源、电视直播源或商业媒体链接**。
 * 用户所播放的一切流媒体内容均由使用者自行合法添加与维护，开发者不对使用者配置的第三方流媒体内容之合法性、合规性承担任何连带责任。
+
+---
+
+## ⭐ Star 发展轨迹 (Star History)
+
+如果您认可 TiviLite 的开源理念与极致体验，请为项目点一个 Star 🌟，您的每一个支持都是我们持续迭代优化的最大动力！
+
+<p align="center">
+  <a href="https://star-history.com/#fullofjoy/tivilite&Date">
+    <img src="https://api.star-history.com/svg?repos=fullofjoy/tivilite&type=Date" alt="Star History Chart" width="700"/>
+  </a>
+</p>
 
 ---
 
