@@ -70,6 +70,7 @@ import com.tivilite.tv.network.CellularDataGuardManager;
 import com.tivilite.tv.sync.LanSubscriptionMirrorManager;
 import com.tivilite.tv.mesh.UniversalHandoffManager;
 import com.tivilite.tv.record.NasDvrSchedulerManager;
+import com.tivilite.tv.feedback.FeedbackManager;
 import android.content.pm.ActivityInfo;
 import android.app.PictureInPictureParams;
 import android.util.Rational;
@@ -581,6 +582,12 @@ public class MainActivity extends AppCompatActivity {
         btnCloneLanSubscriptions = findViewById(R.id.btnCloneLanSubscriptions);
         if (btnCloneLanSubscriptions != null) {
             btnCloneLanSubscriptions.setOnClickListener(v -> cloneLanSubscriptions());
+        }
+
+        // Stage 17: One-Click Feedback & Optimization Submission
+        android.widget.Button btnFeedback = findViewById(R.id.btnFeedback);
+        if (btnFeedback != null) {
+            btnFeedback.setOnClickListener(v -> showFeedbackDialog());
         }
 
         handoffPromptBanner = findViewById(R.id.handoffPromptBanner);
@@ -1557,6 +1564,111 @@ public class MainActivity extends AppCompatActivity {
         b.show();
     }
 
+    private void showFeedbackDialog() {
+        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(this);
+        b.setTitle("💬 一键问题反馈与优化提交 (扫码 / 遥控直提)");
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(36, 16, 36, 16);
+
+        TextView tip = new TextView(this);
+        tip.setText("遇到播放卡顿、黑屏或有新功能构想？欢迎随时向我们反馈！\n推荐使用手机微信/浏览器扫码详述（带输入法极速提交），亦可使用遥控器一键上报：");
+        tip.setTextColor(0xFFCCCCCC);
+        tip.setTextSize(13);
+        tip.setPadding(0, 0, 0, 16);
+        root.addView(tip);
+
+        LinearLayout contentRow = new LinearLayout(this);
+        contentRow.setOrientation(LinearLayout.HORIZONTAL);
+        contentRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        LinearLayout qrCol = new LinearLayout(this);
+        qrCol.setOrientation(LinearLayout.VERTICAL);
+        qrCol.setGravity(android.view.Gravity.CENTER);
+        qrCol.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        String localIp = com.tivilite.tv.server.WebPushServer.getLocalIpAddress();
+        String feedbackUrl = "http://" + localIp + ":8888/#feedback";
+        android.widget.ImageView qrView = new android.widget.ImageView(this);
+        android.graphics.Bitmap qrBmp = generateQrCode(feedbackUrl);
+        if (qrBmp != null) {
+            qrView.setImageBitmap(qrBmp);
+        }
+        qrView.setLayoutParams(new LinearLayout.LayoutParams(260, 260));
+        qrCol.addView(qrView);
+
+        TextView qrLabel = new TextView(this);
+        qrLabel.setText("📱 手机扫码详述反馈\n" + feedbackUrl);
+        qrLabel.setTextColor(0xFF00E5FF);
+        qrLabel.setTextSize(11);
+        qrLabel.setGravity(android.view.Gravity.CENTER);
+        qrLabel.setPadding(0, 8, 0, 0);
+        qrCol.addView(qrLabel);
+
+        contentRow.addView(qrCol);
+
+        LinearLayout remoteCol = new LinearLayout(this);
+        remoteCol.setOrientation(LinearLayout.VERTICAL);
+        remoteCol.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.4f));
+        remoteCol.setPadding(20, 0, 0, 0);
+
+        TextView selTitle = new TextView(this);
+        selTitle.setText("🎮 电视遥控器极速一键分类上报：");
+        selTitle.setTextColor(0xFFFFFFFF);
+        selTitle.setTextSize(13);
+        selTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        remoteCol.addView(selTitle);
+
+        final String[] options = {
+            "🔴 播放卡顿 / 经常转圈缓冲",
+            "🔴 某些频道黑屏 / 403 鉴权失败",
+            "🔴 音画不同步 / 杜比无声音",
+            "🔴 界面异常 / 遥控焦点异常",
+            "💡 功能建议 / 优化改进需求"
+        };
+        final int[] selectedIdx = {0};
+
+        final android.widget.RadioGroup radioGroup = new android.widget.RadioGroup(this);
+        for (int i = 0; i < options.length; i++) {
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText(options[i]);
+            rb.setTextColor(0xFFE5E7EB);
+            rb.setTextSize(12);
+            rb.setId(i);
+            if (i == 0) rb.setChecked(true);
+            radioGroup.addView(rb);
+        }
+        radioGroup.setOnCheckedChangeListener((group, checkedId) -> selectedIdx[0] = checkedId);
+        remoteCol.addView(radioGroup);
+
+        contentRow.addView(remoteCol);
+        root.addView(contentRow);
+
+        b.setView(root);
+
+        b.setPositiveButton("🚀 遥控一键提交并抓取诊断", (dialog, which) -> {
+            String choice = options[selectedIdx[0]];
+            String diag = FeedbackManager.getInstance(this).collectSystemDiagnostic(playerManager, currentChannel);
+            FeedbackManager.getInstance(this).saveFeedback(choice, "通过电视遥控器一键快速上报: " + choice, "TV端直提", diag);
+            Toast.makeText(this, "🎉 感谢反馈！大屏诊断报告已生成并归档，手机扫码亦可一键直达 GitHub 提交！", Toast.LENGTH_LONG).show();
+        });
+
+        b.setNeutralButton("📋 导出诊断快照", (dialog, which) -> {
+            String choice = options[selectedIdx[0]];
+            String diag = FeedbackManager.getInstance(this).collectSystemDiagnostic(playerManager, currentChannel);
+            java.io.File file = FeedbackManager.getInstance(this).exportReportFile(choice, "电视端一键导出快照", diag);
+            if (file != null) {
+                Toast.makeText(this, "📄 诊断文件已导出至: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "❌ 导出失败，请检查存储权限", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        b.setNegativeButton("关闭", null);
+        b.show();
+    }
+
     private void showLeftSidebar() {
         leftSidebar.setVisibility(View.VISIBLE);
         channelRecyclerView.requestFocus();
@@ -2390,6 +2502,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onScheduleDvrRequested(String channelName, String channelUrl, String programTitle, long startTime, long endTime) {
                 handler.post(() -> scheduleNasDvrTask(channelName, channelUrl, programTitle, startTime, endTime));
+            }
+
+            @Override
+            public void onFeedbackReceived(String type, String content, String contact, String diagnostic) {
+                handler.post(() -> {
+                    Toast.makeText(MainActivity.this, "💬 收到手机端问题反馈: [" + type + "]", Toast.LENGTH_LONG).show();
+                    showRemoteHint("💬 收到反馈: " + (content != null && content.length() > 20 ? content.substring(0, 20) + "..." : content));
+                });
             }
         });
 

@@ -175,6 +175,7 @@
       <button class="title-btn" id="btnImport" onclick="showImportModal()">📥 导入M3U订阅</button>
       <button class="title-btn" id="btnMiniPip" onclick="toggleMiniPip()">🪟 置顶画中画 (P)</button>
       <button class="title-btn" id="btnBossKey" onclick="triggerBossKey()">🛡️ 老板键 (H)</button>
+      <button class="title-btn" id="btnFeedback" onclick="showFeedbackModal()">💬 一键反馈</button>
       <button class="title-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ 全屏 (F)</button>
     </div>
   </div>
@@ -291,6 +292,48 @@
       <div class="modal-actions">
         <button class="btn-secondary" onclick="hideImportModal()">取消</button>
         <button class="btn-primary" onclick="confirmImport()">确认导入并播放</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback & Diagnostics Modal -->
+  <div class="modal-backdrop" id="feedbackModal">
+    <div class="modal-box" style="max-width: 580px;">
+      <div class="modal-title">
+        <span>💬 一键问题反馈与优化提交</span>
+        <span class="modal-close" onclick="hideFeedbackModal()">&times;</span>
+      </div>
+      <div class="modal-content">
+        <div class="modal-field">
+          <label>问题分类 / 建议类型:</label>
+          <select id="feedbackCategory" class="modal-input" style="background:#1F2430; color:#FFF;">
+            <option value="🔴 播放卡顿 / 经常转圈缓冲">🔴 播放卡顿 / 经常转圈缓冲</option>
+            <option value="🔴 某些频道黑屏 / 403 鉴权失败">🔴 某些频道黑屏 / 403 鉴权失败</option>
+            <option value="🔴 音画不同步 / 杜比无声音">🔴 音画不同步 / 杜比无声音</option>
+            <option value="🔴 界面异常 / 快捷键无响应">🔴 界面异常 / 快捷键无响应</option>
+            <option value="💡 功能建议 / 优化改进需求">💡 功能建议 / 优化改进需求</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>详细描述 (复现步骤、现象或期望功能):</label>
+          <textarea id="feedbackDesc" class="modal-textarea" style="height:80px;" placeholder="请尽可能详细描述遇到的问题或你的优化建议..."></textarea>
+        </div>
+        <div class="modal-field">
+          <label>联系方式 / GitHub 昵称 (选填):</label>
+          <input type="text" id="feedbackContact" class="modal-input" placeholder="邮箱 / GitHub 用户名 / 微信 / QQ" />
+        </div>
+        <div class="modal-field">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0;">🖥️ 自动抓取的运行环境诊断快照 (自动脱敏):</label>
+            <a href="javascript:void(0)" onclick="refreshFeedbackDiagnostic()" style="color:#00E5FF; font-size:11px; text-decoration:none;">🔄 刷新</a>
+          </div>
+          <pre id="feedbackDiagnostic" style="background:#0E1118; color:#9CA3AF; font-size:11px; padding:10px; border-radius:6px; max-height:110px; overflow-y:auto; border:1px solid rgba(255,255,255,0.08); white-space:pre-wrap;"></pre>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="copyFeedbackDiagnostic()">📋 复制诊断报告</button>
+        <button class="btn-secondary" onclick="hideFeedbackModal()">关闭</button>
+        <button class="btn-primary" onclick="submitFeedbackToGithub()">🚀 一键前往 GitHub 提交 Issue</button>
       </div>
     </div>
   </div>
@@ -772,10 +815,71 @@
         case "Escape":
           hideComplianceModal();
           hideImportModal();
+          hideFeedbackModal();
           toggleSidebar(false);
           break;
       }
     });
+
+    // 反馈与诊断交互
+    function showFeedbackModal() {
+      document.getElementById("feedbackModal").style.display = "flex";
+      refreshFeedbackDiagnostic();
+    }
+
+    function hideFeedbackModal() {
+      document.getElementById("feedbackModal").style.display = "none";
+    }
+
+    function refreshFeedbackDiagnostic() {
+      const cur = (typeof channels !== "undefined" && channels[currentIndex]) ? channels[currentIndex] : {};
+      const diag = [
+        "=== TiviLite Desktop Diagnostic Snapshot ===",
+        "Time: " + new Date().toISOString(),
+        "App: TiviLite Desktop v2.1.0",
+        "Platform: " + navigator.platform,
+        "User-Agent: " + navigator.userAgent,
+        "Screen: " + window.screen.width + "x" + window.screen.height + " (DevicePixelRatio: " + (window.devicePixelRatio || 1) + ")",
+        "Window Size: " + window.innerWidth + "x" + window.innerHeight,
+        "Active Channel: [" + (cur.num || "00") + "] " + (cur.name || "N/A"),
+        "Channel URL: " + (cur.url || "N/A"),
+        "Channel Group: " + (cur.group || "N/A"),
+        "Video State: " + (mainVideo ? (mainVideo.paused ? "Paused" : "Playing") + " (readyState=" + mainVideo.readyState + ", currentTime=" + mainVideo.currentTime.toFixed(1) + "s)" : "None"),
+        "Hls Supported: " + (window.Hls ? (Hls.isSupported() ? "Yes" : "No") : "Native / N/A"),
+        "Memory (JSHeap): " + (window.performance && window.performance.memory ? (window.performance.memory.usedJSHeapSize / 1048576).toFixed(1) + " MB" : "N/A")
+      ].join("\n");
+      const diagEl = document.getElementById("feedbackDiagnostic");
+      if (diagEl) diagEl.textContent = diag;
+    }
+
+    function copyFeedbackDiagnostic() {
+      const diag = document.getElementById("feedbackDiagnostic").textContent;
+      navigator.clipboard.writeText(diag).then(() => {
+        showToast("📋 诊断报告已复制到剪贴板！");
+      }).catch(() => {
+        showToast("❌ 复制失败，请手动选取复制");
+      });
+    }
+
+    function submitFeedbackToGithub() {
+      const category = document.getElementById("feedbackCategory").value;
+      const desc = document.getElementById("feedbackDesc").value.trim() || "（用户未补充具体文本）";
+      const contact = document.getElementById("feedbackContact").value.trim();
+      const diag = document.getElementById("feedbackDiagnostic").textContent;
+
+      const title = encodeURIComponent("[反馈] " + category + ": " + desc.substring(0, 30));
+      const body = encodeURIComponent(
+        "### 反馈类型\n" + category + "\n\n" +
+        "### 详细描述\n" + desc + "\n\n" +
+        "### 联系方式\n" + (contact || "未提供") + "\n\n" +
+        "### 诊断快照 (自动采集)\n```text\n" + diag + "\n```\n"
+      );
+
+      const issueUrl = "https://github.com/fullofjoy/tivilite/issues/new?title=" + title + "&body=" + body;
+      window.open(issueUrl, "_blank");
+      showToast("🚀 已打开 GitHub Issue 页面，点击提交即可！");
+      hideFeedbackModal();
+    }
 
     // 鼠标滚轮调音量
     window.addEventListener("wheel", (e) => {

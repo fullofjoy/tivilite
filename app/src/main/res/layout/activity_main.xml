@@ -1016,9 +1016,25 @@
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:nextFocusUp="@+id/btnCloneLanSubscriptions"
-                        android:nextFocusDown="@+id/btnCloseDialog"
+                        android:nextFocusDown="@+id/btnFeedback"
                         android:text="🔄 在线检查新版本更新"
                         android:textColor="@color/tv_text_primary"
+                        android:textSize="12sp" />
+
+                    <!-- Stage 17: One-Click Issue Feedback and Optimization Submission -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnFeedback"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="6dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/selector_tv_button"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@+id/btnCheckUpdate"
+                        android:nextFocusDown="@+id/btnCloseDialog"
+                        android:text="💬 一键反馈问题与优化建议 (扫码/直提)"
+                        android:textColor="@color/tv_accent"
                         android:textSize="12sp" />
 
                     <!-- Close Button -->
@@ -1031,7 +1047,7 @@
                         android:background="@drawable/selector_tv_button"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
-                        android:nextFocusUp="@+id/btnCheckUpdate"
+                        android:nextFocusUp="@+id/btnFeedback"
                         android:text="❌ 关闭窗口 (按遥控返回键亦可)"
                         android:textColor="@color/tv_text_secondary"
                         android:textSize="11sp" />

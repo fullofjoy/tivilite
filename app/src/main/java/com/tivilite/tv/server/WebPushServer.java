@@ -103,6 +103,9 @@ public class WebPushServer {
         void onCloneLanSubscriptionRequested();
         void onPullHandoffRequested();
         void onScheduleDvrRequested(String channelName, String channelUrl, String programTitle, long startTime, long endTime);
+
+        // Stage 17: One-Click Feedback & Optimization
+        void onFeedbackReceived(String type, String content, String contact, String diagnostic);
     }
 
     public interface StatusProvider {
@@ -300,6 +303,15 @@ public class WebPushServer {
                             dev.put("isCellular", com.tivilite.tv.network.CellularDataGuardManager.getInstance(context).isCellularNetwork());
                             dev.put("cellularGuardEnabled", com.tivilite.tv.network.CellularDataGuardManager.getInstance(context).isCellularGuardEnabled());
                             serveJsonResponse(out, dev.toString());
+                        } catch (Exception e) {
+                            serveJsonResponse(out, "{}");
+                        }
+                    } else if (firstLine.contains("/api/feedback") && context != null) {
+                        try {
+                            org.json.JSONObject fb = new org.json.JSONObject();
+                            fb.put("history", com.tivilite.tv.feedback.FeedbackManager.getInstance(context).getFeedbackHistoryJson());
+                            fb.put("diagnostic", com.tivilite.tv.feedback.FeedbackManager.getInstance(context).collectSystemDiagnostic(null, null));
+                            serveJsonResponse(out, fb.toString());
                         } catch (Exception e) {
                             serveJsonResponse(out, "{}");
                         }
@@ -726,6 +738,19 @@ public class WebPushServer {
                     }
                 }
 
+                // Stage 17: One-Click Feedback & Optimization
+                if (requestLine.contains("/api/feedback") || obj.has("feedback_type") || obj.has("feedback_content")) {
+                    String type = obj.optString("feedback_type", "综合反馈");
+                    String content = obj.optString("feedback_content", obj.optString("content", ""));
+                    String contact = obj.optString("contact", "");
+                    String diag = obj.optString("diagnostic", "");
+                    if (context != null) {
+                        com.tivilite.tv.feedback.FeedbackManager.getInstance(context).saveFeedback(type, content, contact, diag);
+                    }
+                    listener.onFeedbackReceived(type, content, contact, diag);
+                    return "{\"success\":true,\"message\":\"反馈与建议已成功提交至电视大屏！\"}";
+                }
+
                 // Phase 7: EPG Program Reminders
                 if (requestLine.contains("/api/reminders/add") || obj.has("add_reminder")) {
                     String ch = obj.optString("channel_name");
@@ -984,6 +1009,7 @@ public class WebPushServer {
           .append("<div class='nav-tab' onclick='showTab(\"subs\")'>📁 订阅</div>")
           .append("<div class='nav-tab' onclick='showTab(\"webdav\")'>☁️ 云盘</div>")
           .append("<div class='nav-tab' onclick='showTab(\"settings\")'>⚙️ 设置</div>")
+          .append("<div class='nav-tab' onclick='showTab(\"feedback\")'>💬 反馈</div>")
           .append("</div>");
 
         // Panel 1: Virtual Remote Control
@@ -1300,6 +1326,34 @@ public class WebPushServer {
           .append("<p style='color:var(--muted);font-size:12px;margin-top:12px;'>TiviLite v1.6.0 · 纯净合规 · 无线投屏 · 极客雷达 · 插件扩展</p>")
           .append("</div></div>");
 
+        // Panel 10: One-Click Feedback & Optimization Submission
+        sb.append("<div id='tab-feedback' class='tab-panel'>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>💬 问题反馈与优化建议</span><span class='badge'>一键直达</span></div>")
+          .append("<p style='color:var(--muted);font-size:12px;margin-bottom:12px;'>遇到播放卡顿、黑屏或有新功能构想？通过手机提交更便捷，支持一键直达 GitHub Issues 提交官方报告。</p>")
+          .append("<label>反馈类型：</label>")
+          .append("<select id='fbType'>")
+          .append("<option value='播放卡顿/频繁缓冲'>🔴 播放卡顿 / 频繁缓冲</option>")
+          .append("<option value='频道黑屏/403鉴权失败'>🔴 频道黑屏 / 403 鉴权失败</option>")
+          .append("<option value='音画不同步/无声音'>🔴 音画不同步 / 杜比无声音</option>")
+          .append("<option value='界面异常/遥控焦点丢失'>🔴 界面异常 / 遥控焦点丢失</option>")
+          .append("<option value='功能建议/优化改进需求'>💡 功能建议 / 优化改进需求</option>")
+          .append("<option value='其他问题'>💬 其他问题</option>")
+          .append("</select>")
+          .append("<label>问题详述或优化建议：</label>")
+          .append("<textarea id='fbContent' rows='4' placeholder='请在此详述遇到的异常表现、频道名称或您期望增加的功能...'></textarea>")
+          .append("<label>联系方式 (选填，方便沟通进展)：</label>")
+          .append("<input type='text' id='fbContact' placeholder='微信 / QQ / 邮箱 (选填)' />")
+          .append("<label style='display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;'><input type='checkbox' id='fbIncludeDiag' checked style='width:auto;' onchange='toggleDiagPreview()' /> 包含大屏实时运行诊断快照 (自动采集型号/解码/当前频道)</label>")
+          .append("<div id='fbDiagPreview' style='background:#0C0E14;border:1px solid rgba(255,255,255,0.1);padding:10px;border-radius:8px;font-family:monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;max-height:120px;overflow-y:auto;margin-top:8px;'>正在采集电视诊断信息...</div>")
+          .append("<button class='btn-primary' onclick='submitFeedbackToTv()'>🚀 提交至大屏本地存档并提醒</button>")
+          .append("<button class='btn-primary' style='background:#24292E;border:1px solid rgba(255,255,255,0.2);margin-top:8px;' onclick='submitFeedbackToGithub()'>🐙 一键直达 GitHub Issues 提交官方工单</button>")
+          .append("</div>")
+          .append("<div class='card'>")
+          .append("<div class='card-title'><span>📋 历史反馈记录</span><button class='badge' style='background:#202534;border:none;cursor:pointer;' onclick='fetchFeedback()'>刷新</button></div>")
+          .append("<div id='fbHistoryList' style='font-size:12px;color:var(--muted);'>暂无历史提交记录</div>")
+          .append("</div></div>");
+
         // 3. Client JavaScript
         sb.append("</div><script>")
           .append("var allChannelsList = [];")
@@ -1314,7 +1368,7 @@ public class WebPushServer {
           .append("function showTab(name) {")
           .append("  var tabs = document.querySelectorAll('.nav-tab');")
           .append("  var panels = document.querySelectorAll('.tab-panel');")
-          .append("  var names = ['remote', 'ai', 'reminders', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings'];")
+          .append("  var names = ['remote', 'ai', 'reminders', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings', 'feedback'];")
           .append("  tabs.forEach(function(t, i) {")
           .append("    t.className = (names[i] === name) ? 'nav-tab active' : 'nav-tab';")
           .append("  });")
@@ -1328,6 +1382,7 @@ public class WebPushServer {
           .append("  if (name === 'recordings') fetchRecordings();")
           .append("  if (name === 'webdav') fetchDavStatus();")
           .append("  if (name === 'settings') fetchPlugins();")
+          .append("  if (name === 'feedback') fetchFeedback();")
           .append("}")
           .append("function sendKey(key) {")
           .append("  if (navigator.vibrate) navigator.vibrate(20);")
@@ -1632,9 +1687,71 @@ public class WebPushServer {
           .append("  postData({plugin_toggle_id: id, enabled: en});")
           .append("  setTimeout(fetchPlugins, 300);")
           .append("}")
+          .append("var currentDiagText = '';")
+          .append("function fetchFeedback() {")
+          .append("  fetch('/api/feedback').then(function(r){return r.json();}).then(function(data){")
+          .append("    if(data.diagnostic) {")
+          .append("      currentDiagText = data.diagnostic;")
+          .append("      var p = document.getElementById('fbDiagPreview');")
+          .append("      if(p) p.innerText = currentDiagText;")
+          .append("    }")
+          .append("    var box = document.getElementById('fbHistoryList');")
+          .append("    if(box && data.history) {")
+          .append("      if(data.history.length === 0) { box.innerHTML = '<p style=\"color:var(--muted);font-size:12px;text-align:center;padding:12px;\">暂无提交记录</p>'; return; }")
+          .append("      var h = '';")
+          .append("      data.history.forEach(function(item){")
+          .append("        var dt = new Date(item.timestamp).toLocaleString();")
+          .append("        h += '<div style=\"background:#0E1118;border:1px solid rgba(255,255,255,0.08);padding:10px;border-radius:8px;margin-bottom:8px;\">'")
+          .append("           + '<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;\"><strong style=\"color:var(--accent);font-size:13px;\">[' + (item.type||'反馈') + ']</strong><span style=\"color:#6B7280;font-size:11px;\">' + dt + '</span></div>'")
+          .append("           + '<div style=\"color:#E5E7EB;font-size:12px;line-height:1.4;\">' + (item.content||'') + '</div>'")
+          .append("           + (item.contact ? '<div style=\"color:#9CA3AF;font-size:11px;margin-top:4px;\">联系方式: ' + item.contact + '</div>' : '')")
+          .append("           + '</div>';")
+          .append("      });")
+          .append("      box.innerHTML = h;")
+          .append("    }")
+          .append("  }).catch(function(){});")
+          .append("}")
+          .append("function toggleDiagPreview() {")
+          .append("  var chk = document.getElementById('fbIncludeDiag');")
+          .append("  var p = document.getElementById('fbDiagPreview');")
+          .append("  if(p && chk) p.style.display = chk.checked ? 'block' : 'none';")
+          .append("}")
+          .append("function submitFeedbackToTv() {")
+          .append("  var type = document.getElementById('fbType').value;")
+          .append("  var content = document.getElementById('fbContent').value.trim();")
+          .append("  var contact = document.getElementById('fbContact').value.trim();")
+          .append("  var includeDiag = document.getElementById('fbIncludeDiag').checked;")
+          .append("  if(!content) { alert('请填写问题描述或优化建议'); return; }")
+          .append("  showNotice('正在将反馈提交至大屏...', true);")
+          .append("  postData({feedback_type: type, feedback_content: content, contact: contact, diagnostic: includeDiag ? currentDiagText : ''});")
+          .append("  document.getElementById('fbContent').value = '';")
+          .append("  setTimeout(fetchFeedback, 800);")
+          .append("}")
+          .append("function submitFeedbackToGithub() {")
+          .append("  var type = document.getElementById('fbType').value;")
+          .append("  var content = document.getElementById('fbContent').value.trim();")
+          .append("  var contact = document.getElementById('fbContact').value.trim();")
+          .append("  var includeDiag = document.getElementById('fbIncludeDiag').checked;")
+          .append("  var title = encodeURIComponent('[用户反馈] [' + type + '] ' + (content ? (content.length > 20 ? content.substring(0,20) + '...' : content) : '优化建议'));")
+          .append("  var body = '### 📌 反馈分类\\n' + type + '\\n\\n'")
+          .append("           + '### 📝 问题或优化建议描述\\n' + (content || '（请在此详述遇到的异常表现或优化建议）') + '\\n\\n';")
+          .append("  if(contact) body += '### 📬 联系方式\\n' + contact + '\\n\\n';")
+          .append("  if(includeDiag && currentDiagText) {")
+          .append("    body += '### 💻 设备与运行时系统诊断快照 (自动采集)\\n```text\\n' + currentDiagText + '\\n```\\n\\n';")
+          .append("  }")
+          .append("  body += '*(此工单由 TiviLite 灵动遥控端一键生成)*';")
+          .append("  var ghUrl = 'https://github.com/fullofjoy/tivilite/issues/new?title=' + title + '&body=' + encodeURIComponent(body);")
+          .append("  window.open(ghUrl, '_blank');")
+          .append("}")
           .append("window.onload = function() {")
           .append("  fetchSubs(); fetchStatus();")
           .append("  setInterval(fetchStatus, 3500);")
+          .append("  if (location.hash) {")
+          .append("    var h = location.hash.replace('#', '');")
+          .append("    if (['remote', 'ai', 'reminders', 'status', 'channels', 'recordings', 'subs', 'webdav', 'settings', 'feedback'].indexOf(h) >= 0) {")
+          .append("      showTab(h);")
+          .append("    }")
+          .append("  }")
           .append("};")
           .append("</script></body></html>");
 

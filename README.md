@@ -127,6 +127,11 @@ flowchart TD
 ### 7. ⚡ P2P 分布式边缘网状加速
 * 同一局域网或邻近节点自动组网共享媒体分片缓存，热门直播换台提速 300%，节省家庭公网带宽 40% 以上。
 
+### 8. 💬 全终端一键问题反馈与优化提交通道 (Feedback & Diagnostics Engine)
+* **免打字遥控直提**：电视遥控器快速一键多选分类（播放卡顿/黑屏403/音画不同步/界面异常/优化构想），自动抓取脱敏硬件与播放快照一键归档并支持本地导出；
+* **手机扫码快速详述**：电视端内置即时动态二维码 (`http://[TV_IP]:8888/#feedback`)，手机扫码免输地址直接进入手机输入法编辑界面，可直达 GitHub Issues 极速提交官方工单；
+* **桌面端与管理端全联动**：桌面版标题栏与 WebPush 局域网控制台均内嵌独立反馈与诊断抓取面板，打通用户建议与官方开发迭代的双向闭环。
+
 ---
 
 ## 🎮 多终端交互与键位指南
@@ -179,6 +184,7 @@ tivilite/
 │   │   ├── ai/               # 端侧本地 AI 助理与智能推荐
 │   │   ├── data/             # M3U 订阅、EPG 数据仓与持久化
 │   │   ├── device/           # 设备形态智能检测 (DeviceFormFactorManager)
+│   │   ├── feedback/         # 一键诊断快照采集与问题反馈闭环 (FeedbackManager)
 │   │   ├── mesh/             # 跨设备自组网与接力协议 (UniversalHandoffManager)
 │   │   ├── network/          # 蜂窝流量保护 (CellularDataGuardManager)
 │   │   ├── p2p/              # P2P 边缘加速引擎 (P2pEdgeAccelerationManager)
