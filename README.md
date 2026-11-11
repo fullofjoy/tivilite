@@ -86,6 +86,11 @@ flowchart TD
 - **方案 C**：公网 IPv6 高清源批量测速与自动化 Python 保活脚本
 - **极速导入**：TiviLite 手机扫码直推、局域网全屋一键克隆
 
+👉 **[【闲置安卓手机变身电视源服务器：Termux 搭建与分享指南】(docs/TERMUX_IPTV_GUIDE.md)](docs/TERMUX_IPTV_GUIDE.md)**
+- 旧手机充当低功耗服务器（1~2W，零电费负担）
+- Termux 极速换源与防杀后台/熄屏保活技巧
+- 手机扫码直推电视与异地组网（Tailscale）跨网分享给朋友收看
+
 ---
 
 ## ✨ 核心亮点与创新特性全景
